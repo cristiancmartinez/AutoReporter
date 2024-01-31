@@ -8,8 +8,8 @@ from reportlab.pdfgen.canvas import Canvas
 from PIL import Image
 
 class Visualiser:
-    
-    detailsFile = "data/details.json"
+    logoFile = "tools/theICEwayLogo.png"
+    detailsFile = "tools/details.json"
     resourcesDirectory = 'resources'
     overviewDirectory = 'general'
     
@@ -35,14 +35,14 @@ class Visualiser:
         self._savePlt(timeGraph,self.overviewDirectory,'timeGraph')
 
         openTickets = df[df['resolution'] == 'Open']
-        openTicketsTables = self._generateTicketTable(openTickets, self.overviewDirectory, 'openTable')
+        self._generateTicketTable(openTickets, self.overviewDirectory, 'openTable')
 
         # PRIORITY (filtered dataframe)
         priorityDfs, pStatusList = self._splitPriorities(self.filteredDf)
         for priority, label, status, in zip(priorityDfs, self.priorityLabels, pStatusList):
             print(label)
             if not priority.empty:
-                statusPie = self._generatePie(plt, status, self.statusLabels, pcts = False)
+                statusPie = self._generatePie(plt, status, self.statusLabels)
                 self._savePlt(statusPie, label, 'statusPie')
 
                 typesPie = self._generateTypesPie(priority)
@@ -62,7 +62,7 @@ class Visualiser:
         
         # COVER SHEET
         imgSet = []
-        imgSet.append([Image.open("data/theICEway.png")])
+        imgSet.append([Image.open(self.logoFile)])
         reportPDF = self._populatePDF(reportPDF, imgSet)
         
         # OVERVIEW
@@ -74,7 +74,7 @@ class Visualiser:
         reportPDF = self._populatePDF(reportPDF, imgSet)
         
         # PRIORITY
-        priorityDfs, holder = self._splitPriorities(self.filteredDf) #TODO: Change method to have a single return if wanted
+        priorityDfs, _ = self._splitPriorities(self.filteredDf) #TODO: Change method to have a single return if wanted
         for priority, label in zip(priorityDfs,self.priorityLabels):
             if not priority.empty:
                 imgSet = []
@@ -165,7 +165,7 @@ class Visualiser:
         plt.figure()  # Clear current figure
         print(f"The graph {fileName} has been succesfully saved as {pngFilepath}")
         
-    def _generatePie(self, plt, values:list, labels:list, pcts = None):
+    def _generatePie(self, plt, values:list, labels:list):
         if len(values)>0:
             values = values[:6]
             plt.pie(values, colors = self.colorsICE,startangle=90, counterclock=False)
@@ -213,8 +213,8 @@ class Visualiser:
         fig, axs = plt.subplots(1,2, figsize=(12, 6))
         issues = df['issue type'].value_counts()
         sources = df['ticket source'].value_counts()
-        self._generatePie(axs[0],issues.values,issues.index,False)
-        self._generatePie(axs[1],sources.values,sources.index,False)
+        self._generatePie(axs[0],issues.values,issues.index)
+        self._generatePie(axs[1],sources.values,sources.index)
         plt.tight_layout()
         return plt
     
@@ -249,8 +249,8 @@ class Visualiser:
 
         resolutionBar1 = plt.bar(self.priorityLabels, firstFixedResolutions, color=self.colorsICE[1], label='Fixed at first')
         resolutionBar2 = plt.bar(self.priorityLabels, firstFixedResolutionsOpposite, bottom=firstFixedResolutions, color=self.colorsICE[0], label='Not fixed at first')
-        scatterPts = plt.scatter(self.priorityLabels, responsePcts, color='black')
-        plotPts = plt.plot(self.priorityLabels,responsePcts,color='black', label='Response time' )
+        plt.scatter(self.priorityLabels, responsePcts, color='black')
+        plt.plot(self.priorityLabels,responsePcts,color='black', label='Response time' )
         plt.ylabel('Time taken from targets')
         plt.gca().yaxis.set_major_formatter('{x:.0%}') # Set Y axis to percentage format
         plt.ylim(0, 1)  # Set y-axis limits from 0% to 100%
