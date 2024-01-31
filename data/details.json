@@ -1,0 +1,36 @@
+{
+    "SLAresponse": {
+        "P1": "10",
+        "P2": "60",
+        "P3": "240",
+        "P4": "1440"
+    },
+    "SLAresolution": {
+        "P1": "240",
+        "P2": "480",
+        "P3": "1800",
+        "P4": "3000"
+    },
+    "months":{
+        "01":"JAN",
+        "02":"FEB",
+        "03":"MAR",
+        "04":"APR",
+        "05":"MAY",
+        "06":"JUN",
+        "07":"JUL",
+        "08":"AUG",
+        "09":"SEP",
+        "10":"OCT",
+        "11":"NOV",
+        "12":"DEC"
+    },
+
+    "statusOpen": ["in progress","on hold (awaiting customer)","on hold (scheduled)","3rd line","approved","assigned","ongoing","open","peer review","cloud services","backlog"],
+    "statusClosed": ["resolved","closed","done","completed change"],
+    "columns": ["issue key","issue type","priority","category","created","updated","reporter","assignee","summary","status","resolution","time to resolution","first time fix","in scope","time to first response","cost centre","time spent","location","ticket source","satisfaction rating"],
+    "priorityLabels": ["P1", "P2", "P3", "P4"],
+    "statusLabels": ["Open", "Closed","Others"],
+    "colorsICE" : ["#f36f12", "#1098ce", "#c0c0c0", "#2ecc71","#8e44ad","#ecf0f1","#D2B48C"]
+    
+}
