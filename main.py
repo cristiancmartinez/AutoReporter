@@ -14,9 +14,9 @@ def clearResources():
         os.makedirs(fileName, exist_ok=True)
 
 def loadDataframe(fileName):
-    print("File read: ", fileName)
     df = pd.read_csv(fileName, index_col=False)
     df.columns = df.columns.str.lower()
+    print(f"File read: {fileName}. Dimensions: {df.shape[1]} x {df.shape[0]}")
     return df
 
 clearResources()
@@ -34,7 +34,6 @@ while gui.window:
             filePath = gui.handleEvent(event, values)
             if filePath:
                 df = loadDataframe(filePath)
-                print(len(df))
         elif gui.currentLayout == 'Import':
             answer = gui.handleImport(event,values)
             if answer and event == 'MERGE':
@@ -45,6 +44,7 @@ while gui.window:
             elif answer and event == 'SAVE':
                 handler.saveDf(df,answer)
                 print('File saved as', answer)
+                
         elif gui.currentLayout == 'Report':
             startDate, endDate, filePath = gui.handleReport(event, values)
             if startDate and endDate and filePath:

@@ -4,6 +4,9 @@ from datetime import datetime as dt
 class GUI:
     currentLayout = None
 
+    errorDate = "Invalid date format. Please enter valid dates."
+    errorFile = "Invalid file path. Please provide a valid file."
+
     def __init__(self):
         sg.theme('SystemDefault')
         self.currentLayout = 'Main'
@@ -18,29 +21,29 @@ class GUI:
                 elif event == 'GENERATE REPORT':
                     self.changeLayout('Report', self._report1Layout())
                 return filePath
-            else: sg.popup_error("Invalid file path. Please provide a valid file.")
+            else: sg.popup_no_buttons(self.errorFile)
             
     def handleImport(self, event, values):
         if event == 'MERGE':
             filePath = values.get('FILEPATHMERGE')
-            return filePath if filePath else sg.popup_error("Invalid file path. Please provide a valid file.")
+            return filePath if filePath else sg.popup_no_buttons(self.errorFile)
         if event == 'SAVE':
             outputFile = values.get('FILEPATHOUTPUT')
-            return outputFile if outputFile else sg.popup_error("Invalid file path. Please provide a valid file.")
+            return outputFile if outputFile else sg.popup_no_buttons(self.errorFile)
 
     def handleReport(self, event, values):
-        if event == 'OK':
-            startingDate = f"{values.get('DAY1')}/{values.get('MONTH1')}/{values.get('YEAR1')}"
-            endDate = f"{values.get('DAY2')}/{values.get('MONTH2')}/{values.get('YEAR2')}"
-            filepath = values.get('FILEPATHREPORT')
-            try:
-                startDate = dt.strptime(startingDate, '%d/%m/%Y')
-                endDate = dt.strptime(endDate, '%d/%m/%Y')
-                return startDate, endDate, filepath
-            except ValueError:
-                sg.popup_error("Invalid date format. Please enter valid dates.")
-                return None, None, None
-        else: return None, None, None
+        if event != 'SAVE':
+            return None, None, None
+        
+        startingDate = f"{values.get('DAY1')}/{values.get('MONTH1')}/{values.get('YEAR1')}"
+        endDate = f"{values.get('DAY2')}/{values.get('MONTH2')}/{values.get('YEAR2')}"
+        filepath = values.get('FILEPATHREPORT')
+        try:
+            startingDate = dt.strptime(startingDate, '%d/%m/%Y')
+            endDate = dt.strptime(endDate, '%d/%m/%Y')
+            return startingDate, endDate, filepath if filepath else sg.popup_no_buttons(self.errorFile)
+        except ValueError:
+            sg.popup_no_buttons(self.errorDate)
 
     def changeLayout(self, title:str, layout:list):
         self.window.close()
@@ -50,10 +53,10 @@ class GUI:
     def _mainLayout(self):
         return [
             [sg.Text('Please select a file to start')],
-            [sg.FileBrowse(target='FILEPATH')],
-            [sg.InputText(key='FILEPATH', size=(50, 1))],
+            [sg.FileBrowse(target='FILEPATH', size=(50,1))],
+            [sg.InputText(key='FILEPATH', size=(50, 1), visible= False)],
             [sg.Text('Please select an action')],
-            [sg.Button('IMPORT DATA', size=(25, 1)), sg.Button('GENERATE REPORT', size=(25, 1))]
+            [sg.Button('IMPORT DATA', size=(23, 1)), sg.Button('GENERATE REPORT', size=(23, 1))]
         ]
 
     def _import1Layout(self):
@@ -64,7 +67,7 @@ class GUI:
             [sg.Text('Format dataframe')],
             [sg.Button('FORMAT', size=(40, 1))],
             [sg.InputText(key='FILEPATHOUTPUT', size=(1, 1), visible=False)],
-            [sg.FileSaveAs(button_text='SELECT OUTPUT',target='FILEPATHOUTPUT', size=(32, 1)),sg.Button('SAVE', size=(10, 1))]
+            [sg.FileSaveAs(button_text='SELECT OUTPUT',target='FILEPATHOUTPUT', size=(28, 1)),sg.Button('SAVE', size=(10, 1))]
         ]
 
     def _report1Layout(self):
@@ -85,7 +88,6 @@ class GUI:
             [sg.Text('Select an end date')],
             [ds2, ms2, ys2],
             [sg.Text('Select the output file')],
-            [sg.FileSaveAs(target='FILEPATHREPORT', button_text='Browse')],
-            [sg.InputText(key='FILEPATHREPORT')],
-            [sg.Button('OK')]
+            [sg.InputText(key='FILEPATHREPORT', size=(1, 1), visible=False)],
+            [sg.FileSaveAs(target='FILEPATHREPORT', button_text='SELECT OUTPUT', size=(28, 1)),sg.Button('SAVE', size=(10, 1))]
         ]

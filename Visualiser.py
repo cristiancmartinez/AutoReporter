@@ -59,7 +59,6 @@ class Visualiser:
 
     def generatePDF(self, outputFileName:str):
         reportPDF = Canvas(f'{outputFileName}.pdf', pagesize=A4)
-        
         # COVER SHEET
         imgSet = []
         imgSet.append([Image.open(self.logoFile)])

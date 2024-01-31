@@ -23,16 +23,15 @@ class Handler:
         print(f"Dataframe size after formatting: {df.size}, len: {len(df)}")
         return df
     
-    def mergeDf(self, existingDf: pd.DataFrame, newDf = None):
-        if newDf == None:
-            newDf = self.populateDf(pd.DataFrame())
-        auxDf = pd.concat([existingDf, newDf])
+    def mergeDf(self, existingDf:pd.DataFrame, newDf:pd.DataFrame):
+        auxDf = pd.concat([existingDf, newDf], axis=0,ignore_index=True,)
         auxDf.drop_duplicates(subset="issue key", keep="first", inplace=True)
         return auxDf
     
     def saveDf(self, df:pd.DataFrame, outputFileName:str):
         df.to_csv(f"{outputFileName}.csv")
-        print(f"File was saved at {outputFileName}.csv")
+
+# PRIVATE METHODS
     
     def _handleColumns(self,df:pd.DataFrame):
         # Remove custom field columns
