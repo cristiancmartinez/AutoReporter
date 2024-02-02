@@ -215,9 +215,15 @@ class Visualiser:
             limits[1] = limits[1] + length
             colorTab = colorTable(auxDf)
 
+<<<<<<< HEAD
             _, ax = plt.subplots(figsize=(16, 5))
             ax.axis('off')
             table = ax.table(cellText=auxDf[cols].values, colLabels=colLabels, loc='upper center', cellLoc='left', fontsize=fontSize, colWidths=colWidths, cellColours=colorTab)
+=======
+            _, ax = plt.subplots(figsize=(17, 1))
+            ax.axis('off')
+            table = ax.table(cellText=auxDf[cols].values, colLabels=auxDf[cols].columns, loc='center', cellLoc='left', fontsize=fontSize, colWidths=colWidths, cellColours=colorTab)
+>>>>>>> f45fe82f932d5557dcd1a8af8c6cedaf764c3ada
             table.auto_set_font_size(False)
             self._savePlt(plt, directoryName, f"{fileName}{index}")
             index = index + 1
