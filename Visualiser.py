@@ -207,7 +207,6 @@ class Visualiser:
 
         while limits[0] <= len(df):
             auxDf = df[limits[0]:limits[1]]
-            #TODO: Get the correct format for the date and limit its length
             auxDf.loc[:, 'created'] = auxDf['created'].dt.date
             auxDf.loc[:, 'updated'] = auxDf['updated'].dt.date
             auxDf['created'] = auxDf['created'].dt.strftime('%d/%m/%y')

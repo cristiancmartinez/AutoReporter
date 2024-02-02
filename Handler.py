@@ -41,16 +41,12 @@ class Handler:
                 newColumns = column.replace(fieldPattern, '').rstrip(')')
                 df.rename(columns={column: newColumns}, inplace=True)
 
-        # Drop any unnecessary columns
-        missing_columns = [col for col in self.columnsToKeep if col not in df.columns]
-        if missing_columns:
-            print(f"Error: The following columns are not present in the DataFrame: {missing_columns}")
-        else:
-            df.drop(columns=[col for col in df.columns if col not in self.columnsToKeep], inplace=True)
-
-        #TODO Rename only if column exist
-        df.rename(columns={"time to first response": "response time", "time to resolution": "resolution time"}, inplace=True)
-        df = df.loc[:, ~df.columns.duplicated()] # type: ignore #TODO Remove warning
+        dropCols = [col for col in df.columns if col not in self.columnsToKeep]
+        df.drop(columns=dropCols, inplace=True)
+        renameCols = {"time to first response": "response time", "time to resolution": "resolution time"}
+        for old, new in renameCols.items():
+            df.rename(columns={old: new}, inplace=True) if old in df.columns else None
+        df = df.loc[:, ~df.columns.duplicated()]
         return df
     
     def _handleValues(self,df:pd.DataFrame):
