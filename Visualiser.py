@@ -26,7 +26,7 @@ class Visualiser:
         self.generatePDF(outputFileName)
 
     def populateResources(self, df:pd.DataFrame):
-        '''It creates the resources (images)'''
+        '''It creates all of the resources'''
         # OVERVIEW (full dataframe)
         annualGraph = self._generateAnnualGraph(self._splitMonths(df))
         self._savePlt(annualGraph,self.overviewDirectory,'annualGraph')
@@ -35,7 +35,7 @@ class Visualiser:
         self._savePlt(timeGraph,self.overviewDirectory,'timeGraph')
 
         openTickets = df[df['resolution'] == 'Open']
-        self._generateTicketTable(openTickets, self.overviewDirectory, 'openTable')
+        self._generateTicketTable(openTickets, self.overviewDirectory, 'openTable', isOverview= True)
 
         # PRIORITY (filtered dataframe)
         priorityDfs, pStatusList = self._splitPriorities(self.filteredDf)
@@ -47,17 +47,13 @@ class Visualiser:
 
                 typesPie = self._generateTypesPie(priority)
                 self._savePlt(typesPie, label, 'typesPie')
-
-                notOnTime = priority[priority['actual resolution'] > int(self.resolutionAgreed.get(label))]
-                others = priority[(priority['actual resolution'] <= int(self.resolutionAgreed.get(label))) | (priority['actual resolution'].isna())]
-                print(f'{len(priority)}. Not on time: {len(notOnTime)}. Others: {len(others)}')
-                
-                self._generateTicketTable(notOnTime, label, 'breachTable') if not notOnTime.empty else print("No tickets that breach agreement")
-                self._generateTicketTable(others, label, 'regularTable') if not others.empty else print("No tickets that meet the agreement")
+               
+                self._generateTicketTable(priority, label, 'ticketTable', isOverview=False, label = label) if not priority.empty else print("No tickets to generate table", label)
             else:
                 print("No tickets to display graph for", label)
 
     def generatePDF(self, outputFileName:str):
+        '''It creates the pdf canvas and stores it in the given outputFileName'''
         reportPDF = Canvas(f'{outputFileName}.pdf', pagesize=A4)
         # COVER SHEET
         imgSet = []
@@ -70,7 +66,7 @@ class Visualiser:
         tblImgs = self._fetchImages(self.overviewDirectory,conditionStr='Table')
         for tbl in tblImgs:
             imgSet.append([tbl]) # append table images separetely
-        reportPDF = self._populatePDF(reportPDF, imgSet)
+        reportPDF = self._populatePDF(reportPDF, imgSet, mainTitle='YEAR VIEW')
         
         # PRIORITY
         priorityDfs, _ = self._splitPriorities(self.filteredDf) #TODO: Change method to have a single return if wanted
@@ -81,12 +77,11 @@ class Visualiser:
                 tblImgs = self._fetchImages(label,conditionStr='Table')
                 for tbl in tblImgs:
                     imgSet.append([tbl]) # append table images separetely
-                reportPDF = self._populatePDF(reportPDF, imgSet, title=label)
+                reportPDF = self._populatePDF(reportPDF, imgSet, mainTitle=label)
 
         reportPDF.save()
 
 # PRIVATE METHODS
-
     def _loadConfiguration(self):
         with open(self.detailsFile, 'r') as file:
             data = json.load(file)
@@ -95,6 +90,33 @@ class Visualiser:
             self.priorityLabels = data["priorityLabels"]
             self.statusLabels = data["statusLabels"]
             self.colorsICE = data["colorsICE"]
+
+    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, mainTitle = None, margins = None):
+        '''It populates the @pdfCanvas using @imgSet. Each set of @imgSet will be attached in separate pages, while each subset will be together.'''
+        canvasSize = [pdfCanvas._pagesize[0], pdfCanvas._pagesize[1]]
+        if margins == None: margins = [40,40]
+        yCoord = canvasSize[1] - margins[1] # Set at the top
+
+        if mainTitle != None:
+            fontSize = 50
+            pdfCanvas.setFont("Helvetica", 50, fontSize)
+            titleWidth = pdfCanvas.stringWidth(mainTitle, "Helvetica", fontSize)
+            pdfCanvas.drawString(canvasSize[0]/2 - titleWidth/2 , canvasSize[1] - 70,mainTitle)
+        
+        for imgList in imgSet:
+            yCoord = yCoord - margins[1]
+            for img in imgList:
+                imgRatio = canvasSize[0] / img.size[0]
+                imgWidth = canvasSize[0] - margins[0]
+                imgHeight = (img.size[1] - margins[1]) * imgRatio
+                yCoord = yCoord - imgHeight
+                xCoord = canvasSize[0]/2 - imgWidth/2
+                pdfCanvas.drawInlineImage(img, x=xCoord, y=yCoord, width=imgWidth, height=imgHeight)
+                
+            # New page
+            pdfCanvas.showPage()
+            yCoord = canvasSize[1] - margins[1]
+        return pdfCanvas
         
     def _splitPriorities(self, df:pd.DataFrame):
         '''It splits the dataframe provided into its priorities. It returns the dataframes holding tickets based on their priority and the count of each status in them'''
@@ -115,7 +137,6 @@ class Visualiser:
     def _fetchImages(self, inputDir:str, fileNames = None, conditionStr = None):
         '''It opens the files provided and opens either the files provided in fileNames, or the ones that match the conditionStr'''
         imgs = []
-        files = list[str]
         dirName = os.path.join(self.resourcesDirectory,inputDir)
         if fileNames != None:
             files = fileNames
@@ -129,33 +150,6 @@ class Visualiser:
             fileName = os.path.join(dirName,imgName)
             imgs.append(Image.open(fileName))
         return imgs
-
-    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, title = None, margins = None):
-        '''It populates the @pdfCanvas using @imgSet. Each set of @imgSet will be attached in separate pages, while each subset will be together.'''
-        canvasSize = [pdfCanvas._pagesize[0], pdfCanvas._pagesize[1]]
-        if margins == None: margins = [40,40]
-        yCoord = canvasSize[1] - margins[1] # Set at the top
-
-        if title != None:
-            fontSize = 50
-            pdfCanvas.setFont("Helvetica", 50, fontSize)
-            titleWidth = pdfCanvas.stringWidth(title, "Helvetica", fontSize)
-            pdfCanvas.drawString(canvasSize[0]/2 - titleWidth/2 , canvasSize[1] - 70,title)
-        
-        for imgList in imgSet:
-            yCoord = yCoord - margins[1]
-            for img in imgList:
-                imgRatio = canvasSize[0] / img.size[0]
-                imgWidth = canvasSize[0] - margins[0]
-                imgHeight = (img.size[1] - margins[1]) * imgRatio
-                yCoord = yCoord - imgHeight
-                xCoord = canvasSize[0]/2 - imgWidth/2
-                pdfCanvas.drawInlineImage(img, x=xCoord, y=yCoord, width=imgWidth, height=imgHeight)
-                
-            # New page
-            pdfCanvas.showPage()
-            yCoord = canvasSize[1] - margins[1]
-        return pdfCanvas
     
     def _savePlt(self,plt, directoryName:str, fileName:str):
         '''It saves the figure as a PNG file in the directory provided. This directory must be inside the 'resources' directory'''
@@ -184,32 +178,47 @@ class Visualiser:
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         return plt
 
-    def _generateTicketTable(self, df: pd.DataFrame, directoryName:str, fileName:str):
-        df.loc[:, 'created'] = df['created'].dt.date
-        df.loc[:, 'updated'] = df['updated'].dt.date
+    def _generateTicketTable(self, df: pd.DataFrame, directoryName:str, fileName:str, isOverview: bool, label=None):
+        def colorTable(df):
+            onTime = (df['actual resolution'] <= int(self.resolutionAgreed.get(label))) | (df['actual resolution'].isna())
+            colors = []
+            for row in onTime:
+                if row == True:
+                    colors.append(['#ADDFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF'])
+                else:
+                    colors.append(['#FCD299','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF'])
+            return colors
+
+        colsOverview = ['issue key', 'summary', 'priority', 'created','updated', 'first time fix', 'in scope','ticket source']
+        colsPriority = ['issue key', 'summary', 'resolution', 'created','updated',  'first time fix', 'in scope','ticket source']
         length = 100
         limits = [0, length]
         fontSize = 14
-        cols = ['issue key', 'summary', 'created','updated', 'resolution', 'first time fix', 'in scope','ticket source']
-        colWidths = [0.07, 0.4, 0.08 ,0.08 , 0.06, 0.06, 0.05, 0.08]
+        colWidths = [0.07, 0.4, 0.08 ,0.08 , 0.06, 0.06, 0.05, 0.08, 0.02]
         index = 1
         while limits[0] <= len(df):
             auxDf = df[limits[0]:limits[1]]
+            auxDf.loc[:, 'created'] = auxDf['created'].dt.date
+            auxDf.loc[:, 'updated'] = auxDf['updated'].dt.date
             limits[0] = limits[0] + length
             limits[1] = limits[1] + length
 
             # Create a table for the current slice of data
-            fig, ax = plt.subplots(figsize=(20, 5))
+            _, ax = plt.subplots(figsize=(20, 5))
             ax.axis('off')
-        
-            table = ax.table(cellText=auxDf[cols].values, colLabels=auxDf[cols].columns, loc='center', cellLoc='left', fontsize=fontSize, colWidths=colWidths)
+            if isOverview:
+                table = ax.table(cellText=auxDf[colsOverview].values, colLabels=auxDf[colsOverview].columns, loc='center', cellLoc='left', fontsize=fontSize, colWidths=colWidths)
+            else:
+                colorTab = colorTable(auxDf)
+                table = ax.table(cellText=auxDf[colsPriority].values, colLabels=auxDf[colsPriority].columns, loc='center', cellLoc='left', fontsize=fontSize, colWidths=colWidths, cellColours=colorTab)
+
             table.auto_set_font_size(False)
             table.scale(1, 1)
             self._savePlt(plt, directoryName, f"{fileName}{index}")
             index = index + 1
 
     def _generateTypesPie(self, df):
-        fig, axs = plt.subplots(1,2, figsize=(12, 6))
+        _, axs = plt.subplots(1,2, figsize=(12, 6))
         issues = df['issue type'].value_counts()
         sources = df['ticket source'].value_counts()
         self._generatePie(axs[0],issues.values,issues.index)
@@ -232,7 +241,7 @@ class Visualiser:
             else: return 0
 
         resolutionsAvg, resolutionPcts, responseAvg, responsePcts, firstFixPcts = [], [], [], [], []
-        priorityDfs, holder = self._splitPriorities(df)
+        priorityDfs, _ = self._splitPriorities(df)
 
         for priority, label in zip(priorityDfs, self.priorityLabels):
             resolutionsAvg.append(int(calculateAvg(priority,'actual resolution')))
@@ -266,3 +275,4 @@ class Visualiser:
         reviews = df['satisfaction rating'].value_counts()
         reviewsAvg = round(reviews.sum() / len(reviews),2)
         reviewsRate= round(len(reviews) / (df['resolution'] == 'Closed').sum(),2)
+        print(reviewsAvg,reviewsRate)
