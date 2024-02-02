@@ -42,12 +42,15 @@ while gui.window:
             elif event == 'FORMAT':
                 df = handler.formatDf(df)
             elif answer and event == 'SAVE':
+                gui.window.close()
                 handler.saveDf(df,answer)
-                print('File saved as', answer)
+                sg.popup_ok(f'File saved has been as {answer}')
+                break
                 
         elif gui.currentLayout == 'Report':
             startDate, endDate, filePath = gui.handleReport(event, values)
             if startDate and endDate and filePath:
-                visualiser.run(df, startDate, endDate, filePath)
                 gui.window.close()
+                visualiser.run(df, startDate, endDate, filePath)
+                sg.popup_ok(f'File saved has been as {filePath}')
                 break

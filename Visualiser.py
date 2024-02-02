@@ -48,7 +48,7 @@ class Visualiser:
                 typesPie = self._generateTypesPie(priority)
                 self._savePlt(typesPie, label, 'typesPie')
                
-                self._generateTicketTable(priority, label, 'ticketTable', isOverview=False, label = label) if not priority.empty else print("No tickets to generate table", label)
+                self._generateTicketTable(priority, label, 'ticketTable', isOverview=False) if not priority.empty else print("No tickets to generate table", label)
             else:
                 print("No tickets to display graph for", label)
 
@@ -178,40 +178,42 @@ class Visualiser:
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         return plt
 
-    def _generateTicketTable(self, df: pd.DataFrame, directoryName:str, fileName:str, isOverview: bool, label=None):
+    def _generateTicketTable(self, df: pd.DataFrame, directoryName:str, fileName:str, isOverview: bool):
         def colorTable(df):
-            onTime = (df['actual resolution'] <= int(self.resolutionAgreed.get(label))) | (df['actual resolution'].isna())
             colors = []
-            for row in onTime:
-                if row == True:
+            for index, row in df.iterrows():
+                if pd.isna(row['actual resolution']) or row['actual resolution'] <= int(self.resolutionAgreed.get(row['priority'])):
                     colors.append(['#ADDFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF'])
                 else:
                     colors.append(['#FCD299','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF'])
             return colors
-
-        colsOverview = ['issue key', 'summary', 'priority', 'created','updated', 'first time fix', 'in scope','ticket source']
-        colsPriority = ['issue key', 'summary', 'resolution', 'created','updated',  'first time fix', 'in scope','ticket source']
+        
+        if isOverview:
+            cols = ['issue key', 'summary', 'priority', 'created','updated', 'first time fix', 'in scope','ticket source']
+        else:
+            cols = ['issue key', 'summary', 'resolution', 'created','updated',  'first time fix', 'in scope','ticket source']
+        
+        colWidths = [0.08, 0.35, 0.08 ,0.07 , 0.07, 0.06, 0.05, 0.08]
         length = 100
         limits = [0, length]
         fontSize = 14
-        colWidths = [0.07, 0.4, 0.08 ,0.08 , 0.06, 0.06, 0.05, 0.08, 0.02]
         index = 1
+
+        df.loc[:,'summary'] = df.loc[:,'summary'].apply(lambda x: x[:50] if isinstance(x, str) else x)
+        df.loc[:,'ticket source'] = df.loc[:,'ticket source'].apply(lambda x: x[:10] if isinstance(x, str) else x)
+
         while limits[0] <= len(df):
             auxDf = df[limits[0]:limits[1]]
+            #TODO: Get the correct format for the date and limit its length
             auxDf.loc[:, 'created'] = auxDf['created'].dt.date
             auxDf.loc[:, 'updated'] = auxDf['updated'].dt.date
             limits[0] = limits[0] + length
             limits[1] = limits[1] + length
+            colorTab = colorTable(auxDf)
 
-            # Create a table for the current slice of data
-            _, ax = plt.subplots(figsize=(20, 5))
+            _, ax = plt.subplots(figsize=(17, 1))
             ax.axis('off')
-            if isOverview:
-                table = ax.table(cellText=auxDf[colsOverview].values, colLabels=auxDf[colsOverview].columns, loc='center', cellLoc='left', fontsize=fontSize, colWidths=colWidths)
-            else:
-                colorTab = colorTable(auxDf)
-                table = ax.table(cellText=auxDf[colsPriority].values, colLabels=auxDf[colsPriority].columns, loc='center', cellLoc='left', fontsize=fontSize, colWidths=colWidths, cellColours=colorTab)
-
+            table = ax.table(cellText=auxDf[cols].values, colLabels=auxDf[cols].columns, loc='center', cellLoc='left', fontsize=fontSize, colWidths=colWidths, cellColours=colorTab)
             table.auto_set_font_size(False)
             table.scale(1, 1)
             self._savePlt(plt, directoryName, f"{fileName}{index}")
