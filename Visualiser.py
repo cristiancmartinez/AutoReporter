@@ -8,8 +8,8 @@ from reportlab.pdfgen.canvas import Canvas
 from PIL import Image
 
 class Visualiser:
-    logoFile = "tools/theICEwayLogo.png"
-    detailsFile = "tools/details.json"
+    logoFile = 'tools/theICEwayLogo.png'
+    detailsFile = 'tools/details.json'
     resourcesDirectory = 'resources'
     overviewDirectory = 'general'
     
@@ -18,8 +18,8 @@ class Visualiser:
 
     def run(self, df:pd.DataFrame, startDate, endDate, outputFileName:str):
         df.columns = df.columns.str.lower()
-        df['created'] = pd.to_datetime(df['created'],format="mixed")
-        df['updated'] = pd.to_datetime(df['updated'],format="mixed")
+        df['created'] = pd.to_datetime(df['created'],format='mixed')
+        df['updated'] = pd.to_datetime(df['updated'],format='mixed')
         self.filteredDf = df[(df['created'] >= startDate) & (df['created'] <= endDate)]
         print(f"From {startDate} to {endDate}. Len: {len(self.filteredDf)}")
         self.populateResources(df)
@@ -48,9 +48,9 @@ class Visualiser:
                 typesPie = self._generateTypesPie(priority)
                 self._savePlt(typesPie, label, 'typesPie')
                
-                self._generateTicketTable(priority, label, 'ticketTable', isOverview=False) if not priority.empty else print("No tickets to generate table", label)
+                self._generateTicketTable(priority, label, 'ticketTable', isOverview=False) if not priority.empty else print(f"No tickets to generate table {label}")
             else:
-                print("No tickets to display graph for", label)
+                print(f"No tickets to generate graph for {label}")
 
     def generatePDF(self, outputFileName:str):
         '''It creates the pdf canvas and stores it in the given outputFileName'''
@@ -66,7 +66,7 @@ class Visualiser:
         tblImgs = self._fetchImages(self.overviewDirectory,conditionStr='Table')
         for tbl in tblImgs:
             imgSet.append([tbl]) # append table images separetely
-        reportPDF = self._populatePDF(reportPDF, imgSet, mainTitle='YEAR VIEW')
+        reportPDF = self._populatePDF(reportPDF, imgSet, mainTitle='OVERVIEW')
         
         # PRIORITY
         priorityDfs, _ = self._splitPriorities(self.filteredDf) #TODO: Change method to have a single return if wanted
@@ -77,7 +77,7 @@ class Visualiser:
                 tblImgs = self._fetchImages(label,conditionStr='Table')
                 for tbl in tblImgs:
                     imgSet.append([tbl]) # append table images separetely
-                reportPDF = self._populatePDF(reportPDF, imgSet, mainTitle=label, margins = (20,20))
+                reportPDF = self._populatePDF(reportPDF, imgSet, mainTitle=label)
 
         reportPDF.save()
 
@@ -85,37 +85,38 @@ class Visualiser:
     def _loadConfiguration(self):
         with open(self.detailsFile, 'r') as file:
             data = json.load(file)
-            self.responseAgreed = data["SLAresponse"]
-            self.resolutionAgreed = data["SLAresolution"]
-            self.priorityLabels = data["priorityLabels"]
-            self.statusLabels = data["statusLabels"]
-            self.colorsICE = data["colorsICE"]
+            self.responseAgreed = data['SLAresponse']
+            self.resolutionAgreed = data['SLAresolution']
+            self.priorityLabels = data['priorityLabels']
+            self.statusLabels = data['statusLabels']
+            self.colorsICE = data['colorsICE']
 
-    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, mainTitle = None, margins = None):
+    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, mainTitle = None):
         '''It populates the @pdfCanvas using @imgSet. Each set of @imgSet will be attached in separate pages, while each subset will be together.'''
         canvasSize = [pdfCanvas._pagesize[0], pdfCanvas._pagesize[1]]
-        if margins == None: margins = [40,40]
-        yCoord = canvasSize[1] - margins[1] # Set at the top
+        margins = [40,60]
+        separation = 30
+        yCoord = canvasSize[1] - margins[1]
 
         if mainTitle:
             fontSize = 50
-            pdfCanvas.setFont("Helvetica", 50, fontSize)
-            titleWidth = pdfCanvas.stringWidth(mainTitle, "Helvetica", fontSize)
+            pdfCanvas.setFont('Helvetica', 50, fontSize)
+            titleWidth = pdfCanvas.stringWidth(mainTitle, 'Helvetica', fontSize)
             pdfCanvas.drawString(canvasSize[0]/2 - titleWidth/2 , canvasSize[1] - 70,mainTitle)
+            yCoord -= separation
         
         for imgList in imgSet:
-            yCoord = yCoord - margins[1]
-            for img in imgList: #FIXME: Fix the ratio
-                imgRatio = canvasSize[0] / img.size[0]
+            for img in imgList:
+                imgRatio = img.size[0] / img.size[1]
                 imgWidth = canvasSize[0] - margins[0]
-                imgHeight = (img.size[1] - margins[1]) * imgRatio
-                yCoord = yCoord - imgHeight
+                imgHeight = imgWidth / imgRatio
+                yCoord -= imgHeight
                 xCoord = canvasSize[0]/2 - imgWidth/2
                 pdfCanvas.drawInlineImage(img, x=xCoord, y=yCoord, width=imgWidth, height=imgHeight)
-                
+                            
             # New page
             pdfCanvas.showPage()
-            yCoord = canvasSize[1] - margins[1]
+            yCoord = canvasSize[1] - separation
         return pdfCanvas
         
     def _splitPriorities(self, df:pd.DataFrame):
@@ -143,7 +144,7 @@ class Visualiser:
         elif conditionStr != None:
             files = [f for f in os.listdir(dirName) if conditionStr.lower() in f.lower()]
         else:
-            print("There are no images to fetch")
+            print('There are no images to fetch')
             files = []
 
         for imgName in files:
@@ -172,8 +173,8 @@ class Visualiser:
         for monthDf in dfsList:
             closedDf.append(len(monthDf[monthDf['resolution'] == 'Closed']))
             openDf.append(len(monthDf[monthDf['resolution'] != 'Closed']))
-        plt.bar(months,closedDf,color=self.colorsICE[1], label="Closed")
-        plt.bar(months,openDf, bottom=closedDf,color=self.colorsICE[0], label="Open")
+        plt.bar(months,closedDf,color=self.colorsICE[1], label='Closed')
+        plt.bar(months,openDf, bottom=closedDf,color=self.colorsICE[0], label='Open')
         plt.ylabel('N tickets')
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         return plt
@@ -215,15 +216,9 @@ class Visualiser:
             limits[1] = limits[1] + length
             colorTab = colorTable(auxDf)
 
-<<<<<<< HEAD
             _, ax = plt.subplots(figsize=(16, 5))
             ax.axis('off')
             table = ax.table(cellText=auxDf[cols].values, colLabels=colLabels, loc='upper center', cellLoc='left', fontsize=fontSize, colWidths=colWidths, cellColours=colorTab)
-=======
-            _, ax = plt.subplots(figsize=(17, 1))
-            ax.axis('off')
-            table = ax.table(cellText=auxDf[cols].values, colLabels=auxDf[cols].columns, loc='center', cellLoc='left', fontsize=fontSize, colWidths=colWidths, cellColours=colorTab)
->>>>>>> f45fe82f932d5557dcd1a8af8c6cedaf764c3ada
             table.auto_set_font_size(False)
             self._savePlt(plt, directoryName, f"{fileName}{index}")
             index = index + 1
