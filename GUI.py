@@ -33,17 +33,23 @@ class GUI:
 
     def handleReport(self, event, values):
         if event != 'SAVE':
-            return None, None, None
+            return None, None, None, None
         
         startingDate = f"{values.get('DAY1')}/{values.get('MONTH1')}/{values.get('YEAR1')}"
         endDate = f"{values.get('DAY2')}/{values.get('MONTH2')}/{values.get('YEAR2')}"
         filepath = values.get('FILEPATHREPORT')
+        title = values.get('TITLEREPORT')
         try:
             startingDate = dt.strptime(startingDate, '%d/%m/%Y')
             endDate = dt.strptime(endDate, '%d/%m/%Y')
-            return startingDate, endDate, filepath if filepath else sg.popup_no_buttons(self.errorFile)
         except ValueError:
             sg.popup_no_buttons(self.errorDate)
+        if not filepath:
+            sg.popup_no_buttons(self.errorFile)
+        elif not title:
+            sg.popup_no_buttons('Please provide a title for the report')
+        else:
+            return startingDate, endDate, filepath, title
 
     def changeLayout(self, title:str, layout:list):
         self.window.close()
@@ -53,7 +59,7 @@ class GUI:
     def _mainLayout(self):
         return [
             [sg.Text('Please select a file to start')],
-            [sg.FileBrowse(target='FILEPATH', size=(50,1))],
+            [sg.FileBrowse(button_text='BROWSE', target='FILEPATH', size=(50,1))],
             [sg.InputText(key='FILEPATH', size=(50, 1), visible= False)],
             [sg.Text('Please select an action')],
             [sg.Button('IMPORT DATA', size=(23, 1)), sg.Button('GENERATE REPORT', size=(23, 1))]
@@ -62,7 +68,7 @@ class GUI:
     def _import1Layout(self):
         return [
             [sg.Text('Add additional dataframes')],
-            [sg.FileBrowse(target='FILEPATHMERGE', size=(40, 1))],
+            [sg.FileBrowse(button_text='BROWSE', target='FILEPATHMERGE', size=(40, 1))],
             [sg.InputText(key='FILEPATHMERGE', size=(32, 1)), sg.Button('MERGE', size=(10, 1))],
             [sg.Text('Format dataframe')],
             [sg.Button('FORMAT', size=(40, 1))],
@@ -87,7 +93,9 @@ class GUI:
             [ds1, ms1, ys1],
             [sg.Text('Select an end date')],
             [ds2, ms2, ys2],
-            [sg.Text('Select the output file')],
+            [sg.Text('Provide a title for the report')],
+            [sg.InputText(key='TITLEREPORT', size=(30, 1))],
             [sg.InputText(key='FILEPATHREPORT', size=(1, 1), visible=False)],
+            [sg.Text('Select the output file')],
             [sg.FileSaveAs(target='FILEPATHREPORT', button_text='SELECT OUTPUT', size=(28, 1)),sg.Button('SAVE', size=(10, 1))]
         ]

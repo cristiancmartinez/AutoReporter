@@ -16,7 +16,10 @@ class Visualiser:
     def __init__(self):
         self._loadConfiguration()
 
-    def run(self, df:pd.DataFrame, startDate, endDate, outputFileName:str):
+    def run(self, df:pd.DataFrame, startDate, endDate, outputFileName:str, fileTitle: str):
+        self.startDate = startDate.strftime('%d/%m/%Y')
+        self.endDate = endDate.strftime('%d/%m/%Y')
+        self.fileTitle = fileTitle
         df.columns = df.columns.str.lower()
         df['created'] = pd.to_datetime(df['created'],format='mixed')
         df['updated'] = pd.to_datetime(df['updated'],format='mixed')
@@ -58,7 +61,7 @@ class Visualiser:
         # COVER SHEET
         imgSet = []
         imgSet.append([Image.open(self.logoFile)])
-        reportPDF = self._populatePDF(reportPDF, imgSet)
+        reportPDF = self._populatePDF(reportPDF, imgSet, title= self.fileTitle, titleYPosition= 100)
         
         # OVERVIEW
         imgSet = []
@@ -66,7 +69,7 @@ class Visualiser:
         tblImgs = self._fetchImages(self.overviewDirectory,conditionStr='Table')
         for tbl in tblImgs:
             imgSet.append([tbl]) # append table images separetely
-        reportPDF = self._populatePDF(reportPDF, imgSet, mainTitle='OVERVIEW')
+        reportPDF = self._populatePDF(reportPDF, imgSet, title= 'OVERVIEW')
         
         # PRIORITY
         priorityDfs, _ = self._splitPriorities(self.filteredDf) #TODO: Change method to have a single return if wanted
@@ -77,7 +80,7 @@ class Visualiser:
                 tblImgs = self._fetchImages(label,conditionStr='Table')
                 for tbl in tblImgs:
                     imgSet.append([tbl]) # append table images separetely
-                reportPDF = self._populatePDF(reportPDF, imgSet, mainTitle=label)
+                reportPDF = self._populatePDF(reportPDF, imgSet, title=label)
 
         reportPDF.save()
 
@@ -91,18 +94,21 @@ class Visualiser:
             self.statusLabels = data['statusLabels']
             self.colorsICE = data['colorsICE']
 
-    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, mainTitle = None):
+    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, title=None, titleYPosition=None):
         '''It populates the @pdfCanvas using @imgSet. Each set of @imgSet will be attached in separate pages, while each subset will be together.'''
         canvasSize = [pdfCanvas._pagesize[0], pdfCanvas._pagesize[1]]
-        margins = [40,60]
-        separation = 30
+        margins = [40,70]
+        separation = 40
         yCoord = canvasSize[1] - margins[1]
 
-        if mainTitle:
+        if title:
             fontSize = 50
             pdfCanvas.setFont('Helvetica', 50, fontSize)
-            titleWidth = pdfCanvas.stringWidth(mainTitle, 'Helvetica', fontSize)
-            pdfCanvas.drawString(canvasSize[0]/2 - titleWidth/2 , canvasSize[1] - 70,mainTitle)
+            titleWidth = pdfCanvas.stringWidth(title, 'Helvetica', fontSize)
+            if titleYPosition:
+                pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2 , y= titleYPosition, text= title)
+            else:
+                pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2 , y= canvasSize[1] - margins[1], text= title)
             yCoord -= separation
         
         for imgList in imgSet:
