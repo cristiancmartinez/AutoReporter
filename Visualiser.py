@@ -50,7 +50,7 @@ class Visualiser:
 
                 typesPie = self._generateTypesPie(priority)
                 self._savePlt(typesPie, label, 'typesPie')
-               
+            
                 self._generateTicketTable(priority, label, 'ticketTable', isOverview=False) if not priority.empty else print(f"No tickets to generate table {label}")
             else:
                 print(f"No tickets to generate graph for {label}")
@@ -97,8 +97,8 @@ class Visualiser:
     def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, title=None, titleYPosition=None):
         '''It populates the @pdfCanvas using @imgSet. Each set of @imgSet will be attached in separate pages, while each subset will be together.'''
         canvasSize = [pdfCanvas._pagesize[0], pdfCanvas._pagesize[1]]
-        margins = [40,70]
-        separation = 40
+        margins = [40, 90]
+        separation = 25
         yCoord = canvasSize[1] - margins[1]
 
         if title:
@@ -108,11 +108,10 @@ class Visualiser:
             if titleYPosition:
                 pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2 , y= titleYPosition, text= title)
             else:
-                pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2 , y= canvasSize[1] - margins[1], text= title)
-            yCoord -= separation
-        
+                pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2 , y= yCoord, text= title)
         for imgList in imgSet:
             for img in imgList:
+                yCoord -= separation
                 imgRatio = img.size[0] / img.size[1]
                 imgWidth = canvasSize[0] - margins[0]
                 imgHeight = imgWidth / imgRatio
