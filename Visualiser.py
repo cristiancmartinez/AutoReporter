@@ -17,14 +17,15 @@ class Visualiser:
         self._loadConfiguration()
 
     def run(self, df:pd.DataFrame, startDate, endDate, outputFileName:str, fileTitle: str):
-        self.startDate = startDate.strftime('%d/%m/%Y')
-        self.endDate = endDate.strftime('%d/%m/%Y')
+        self.startDateLong = startDate.strftime('%d/%m/%Y')
+        self.endDateLong = endDate.strftime('%d/%m/%Y')
+        self.startDateShort = startDate.strftime('%d/%m/%y')
+        self.endDateShort = endDate.strftime('%d/%m/%y')
         self.fileTitle = fileTitle
         df.columns = df.columns.str.lower()
         df['created'] = pd.to_datetime(df['created'],format='mixed')
         df['updated'] = pd.to_datetime(df['updated'],format='mixed')
         self.filteredDf = df[(df['created'] >= startDate) & (df['created'] <= endDate)]
-        print(f"From {startDate} to {endDate}. Len: {len(self.filteredDf)}")
         self.populateResources(df)
         self.generatePDF(outputFileName)
 
@@ -42,8 +43,7 @@ class Visualiser:
 
         # PRIORITY (filtered dataframe)
         priorityDfs, pStatusList = self._splitPriorities(self.filteredDf)
-        for priority, label, status, in zip(priorityDfs, self.priorityLabels, pStatusList):
-            print(label)
+        for priority, label, status in zip(priorityDfs, self.priorityLabels, pStatusList):
             if not priority.empty:
                 statusPie = self._generatePie(plt, status, self.statusLabels)
                 self._savePlt(statusPie, label, 'statusPie')
@@ -61,7 +61,7 @@ class Visualiser:
         # COVER SHEET
         imgSet = []
         imgSet.append([Image.open(self.logoFile)])
-        reportPDF = self._populatePDF(reportPDF, imgSet, title= self.fileTitle, titleYPosition= 100)
+        reportPDF = self._populatePDF(reportPDF, imgSet, title= self.fileTitle, titleYPosition= 200)
         
         # OVERVIEW
         imgSet = []
@@ -73,14 +73,14 @@ class Visualiser:
         
         # PRIORITY
         priorityDfs, _ = self._splitPriorities(self.filteredDf) #TODO: Change method to have a single return if wanted
-        for priority, label in zip(priorityDfs,self.priorityLabels):
+        for priority, label in zip(priorityDfs, self.priorityLabels):
             if not priority.empty:
                 imgSet = []
                 imgSet.append(self._fetchImages(label,['statusPie.png','typesPie.png']))
                 tblImgs = self._fetchImages(label,conditionStr='Table')
                 for tbl in tblImgs:
                     imgSet.append([tbl]) # append table images separetely
-                reportPDF = self._populatePDF(reportPDF, imgSet, title=label)
+                reportPDF = self._populatePDF(reportPDF, imgSet, title=f"{label} - {len(priority)} tickets")
 
         reportPDF.save()
 
@@ -100,15 +100,17 @@ class Visualiser:
         margins = [40, 90]
         separation = 25
         yCoord = canvasSize[1] - margins[1]
-
         if title:
             fontSize = 50
             pdfCanvas.setFont('Helvetica', 50, fontSize)
-            titleWidth = pdfCanvas.stringWidth(title, 'Helvetica', fontSize)
+            title1Width = pdfCanvas.stringWidth(title, 'Helvetica', fontSize)
+            title2 = f"{self.startDateShort} to {self.endDateShort}"
+            title2Width = pdfCanvas.stringWidth(title2, 'Helvetica', fontSize)
             if titleYPosition:
-                pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2 , y= titleYPosition, text= title)
+                pdfCanvas.drawString(x= canvasSize[0]/2 - title1Width/2, y= titleYPosition, text= title)
+                pdfCanvas.drawString(x= canvasSize[0]/2 - title2Width/2, y= titleYPosition - 60, text= title2)
             else:
-                pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2 , y= yCoord, text= title)
+                pdfCanvas.drawString(x= canvasSize[0]/2 - title1Width/2, y= yCoord, text= title)
         for imgList in imgSet:
             for img in imgList:
                 yCoord -= separation
@@ -178,8 +180,8 @@ class Visualiser:
         for monthDf in dfsList:
             closedDf.append(len(monthDf[monthDf['resolution'] == 'Closed']))
             openDf.append(len(monthDf[monthDf['resolution'] != 'Closed']))
-        plt.bar(months,closedDf,color=self.colorsICE[1], label='Closed')
-        plt.bar(months,openDf, bottom=closedDf,color=self.colorsICE[0], label='Open')
+        plt.bar(months, closedDf, color=self.colorsICE[1], label= f"Closed ({sum(closedDf)})")
+        plt.bar(months, openDf, bottom=closedDf, color=self.colorsICE[0], label=f"Open ({sum(openDf)})")
         plt.ylabel('N tickets')
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         return plt
@@ -228,11 +230,11 @@ class Visualiser:
             index = index + 1
 
     def _generateTypesPie(self, df):
-        _, axs = plt.subplots(1,2, figsize=(12, 6))
+        _, axs = plt.subplots(1, 2, figsize=(12, 6))
         issues = df['issue type'].value_counts()
         sources = df['ticket source'].value_counts()
-        self._generatePie(axs[0],issues.values,issues.index)
-        self._generatePie(axs[1],sources.values,sources.index)
+        self._generatePie(axs[0], issues.values, [f"{issue} ({count})" for issue, count in zip(issues.index, issues.values)])
+        self._generatePie(axs[1], sources.values, [f"{source} ({count})" for source, count in zip(sources.index, sources.values)])
         plt.tight_layout()
         return plt
     
@@ -268,10 +270,10 @@ class Visualiser:
         resolutionBar1 = plt.bar(self.priorityLabels, firstFixedResolutions, color=self.colorsICE[1], label='Fixed at first')
         resolutionBar2 = plt.bar(self.priorityLabels, firstFixedResolutionsOpposite, bottom=firstFixedResolutions, color=self.colorsICE[0], label='Not fixed at first')
         plt.scatter(self.priorityLabels, responsePcts, color='black')
-        plt.plot(self.priorityLabels,responsePcts,color='black', label='Response time' )
+        plt.plot(self.priorityLabels, responsePcts, color='black', label='Response time')
         plt.ylabel('Time taken from targets')
         plt.gca().yaxis.set_major_formatter('{x:.0%}') # Set Y axis to percentage format
-        plt.ylim(0, 1)  # Set y-axis limits from 0% to 100%
+        plt.ylim(0, 1)  # Set Y axis limits
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
         for i, (rect1, rect2) in enumerate(zip(resolutionBar1, resolutionBar2)):
