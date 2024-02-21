@@ -30,8 +30,12 @@ class Visualiser:
         self.generatePDF(outputFileName)
 
     def populateResources(self, df:pd.DataFrame):
-        '''It creates all of the resources'''
-        # OVERVIEW (full dataframe)
+        '''
+        It creates all of the resources and place it in the correspondent directory.
+        - Overview uses a dataframe that contains all tickets.
+        - Priority uses a filtered dataframe, limited by the dates chosen when it was created.
+        '''
+        # OVERVIEW
         annualGraph = self._generateAnnualGraph(self._splitMonths(df))
         self._savePlt(annualGraph,self.overviewDirectory,'annualGraph')
 
@@ -41,11 +45,15 @@ class Visualiser:
         openTickets = df[df['resolution'] == 'Open']
         self._generateTicketTable(openTickets, self.overviewDirectory, 'openTable', isOverview= True)
 
-        # PRIORITY (filtered dataframe)
+        # PRIORITY
         priorityDfs, pStatusList = self._splitPriorities(self.filteredDf)
+        tags = ['Open', 'Closed', 'Unknown']
+        statusLabels = []
         for priority, label, status in zip(priorityDfs, self.priorityLabels, pStatusList):
             if not priority.empty:
-                statusPie = self._generatePie(plt, status, self.statusLabels)
+                for tag, count in zip(tags, status):
+                    statusLabels.append(f"{tag} ({count})")
+                statusPie = self._generatePie(plt, status, statusLabels)
                 self._savePlt(statusPie, label, 'statusPie')
 
                 typesPie = self._generateTypesPie(priority)
@@ -69,7 +77,7 @@ class Visualiser:
         tblImgs = self._fetchImages(self.overviewDirectory,conditionStr='Table')
         for tbl in tblImgs:
             imgSet.append([tbl]) # append table images separetely
-        reportPDF = self._populatePDF(reportPDF, imgSet, title= 'OVERVIEW')
+        reportPDF = self._populatePDF(reportPDF, imgSet, title= 'MONTHLY TICKETS')
         
         # PRIORITY
         priorityDfs, _ = self._splitPriorities(self.filteredDf) #TODO: Change method to have a single return if wanted
@@ -91,7 +99,6 @@ class Visualiser:
             self.responseAgreed = data['SLAresponse']
             self.resolutionAgreed = data['SLAresolution']
             self.priorityLabels = data['priorityLabels']
-            self.statusLabels = data['statusLabels']
             self.colorsICE = data['colorsICE']
 
     def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, title=None, titleYPosition=None):
