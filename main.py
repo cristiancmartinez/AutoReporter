@@ -35,7 +35,7 @@ while gui.window:
             if filePath:
                 df = loadDataframe(filePath)
         elif gui.currentLayout == 'Import':
-            answer = gui.handleImport(event,values)
+            answer = gui.handleImport(event, values)
             if answer and event == 'MERGE':
                 df = handler.mergeDf(df,loadDataframe(answer))
                 print(len(df))
