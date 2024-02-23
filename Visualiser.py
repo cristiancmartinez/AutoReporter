@@ -9,10 +9,9 @@ from PIL import Image
 from datetime import date
 
 class Visualiser:
-    logoFile = 'tools/theICEwayLogo.png'
     detailsFile = 'tools/details.json'
     resourcesDirectory = 'resources'
-    overviewDirectory = 'general'
+    overviewDirectory = os.path.join(resourcesDirectory, 'general')
     pageCount = 0
     
     def __init__(self):
@@ -33,17 +32,15 @@ class Visualiser:
 
     def populateResources(self, df:pd.DataFrame):
         '''
-        It creates all of the resources and place it in the correspondent directory.
+        It creates all of the resources and place them in the correspondent directory.
         - Overview uses a dataframe that contains all tickets.
         - Priority uses a filtered dataframe, limited by the dates chosen when it was created.
         '''
         # OVERVIEW
         annualGraph = self._generateAnnualGraph(self._splitMonths(df))
         self._savePlt(annualGraph,self.overviewDirectory,'annualGraph')
-
         timeGraph = self._generateTimeGraph(df)
         self._savePlt(timeGraph,self.overviewDirectory,'timeGraph')
-
         openTickets = df[df['resolution'] == 'Open']
         self._generateTicketTable(openTickets, self.overviewDirectory, 'openTable', isOverview= True)
 
@@ -52,16 +49,15 @@ class Visualiser:
         tags = ['Open', 'Closed', 'Unknown']
         statusLabels = []
         for priority, label, status in zip(priorityDfs, self.priorityLabels, pStatusList):
+            labelDir = os.path.join(self.resourcesDirectory,label)
             if not priority.empty:
                 for tag, count in zip(tags, status):
                     statusLabels.append(f"{tag} ({count})")
                 statusPie = self._generatePie(plt, status, statusLabels)
-                self._savePlt(statusPie, label, 'statusPie')
-
+                self._savePlt(statusPie, labelDir, 'statusPie')
                 typesPie = self._generateTypesPie(priority)
-                self._savePlt(typesPie, label, 'typesPie')
-            
-                self._generateTicketTable(priority, label, 'ticketTable', isOverview=False) if not priority.empty else print(f"No tickets to generate table {label}")
+                self._savePlt(typesPie, labelDir, 'typesPie')
+                self._generateTicketTable(priority, labelDir, 'ticketTable', isOverview=False) if not priority.empty else print(f"No tickets to generate table {label}")
             else:
                 print(f"No tickets to generate graph for {label}")
 
@@ -71,9 +67,8 @@ class Visualiser:
 
         # COVER SHEET
         imgSet = []
-        imgSet.append([Image.open(self.logoFile)])
-
-        reportPDF = self._populatePDF(reportPDF, imgSet, title= self.fileTitle, titleYPosition= 200)
+        imgSet.append(self._fetchImages('tools\logos',['theICEway.png','Topdeck.png'])) #TODO Add GUI to set the client name
+        reportPDF = self._populatePDF(reportPDF, imgSet, title= self.fileTitle, titleYPos= 200)
         
         # OVERVIEW
         imgSet = []
@@ -88,8 +83,9 @@ class Visualiser:
         for priority, label in zip(priorityDfs, self.priorityLabels):
             if not priority.empty:
                 imgSet = []
-                imgSet.append(self._fetchImages(label,['statusPie.png','typesPie.png']))
-                tblImgs = self._fetchImages(label,conditionStr='Table')
+                labelDir = os.path.join(self.resourcesDirectory, label)
+                imgSet.append(self._fetchImages(labelDir,['statusPie.png','typesPie.png']))
+                tblImgs = self._fetchImages(labelDir,conditionStr='Table')
                 for tbl in tblImgs:
                     imgSet.append([tbl]) # append table images separetely
                 reportPDF = self._populatePDF(reportPDF, imgSet, title=f"{label} - {len(priority)} tickets")
@@ -105,8 +101,12 @@ class Visualiser:
             self.priorityLabels = data['priorityLabels']
             self.colorsICE = data['colorsICE']
 
-    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, title, titleYPosition=None):
-        '''It populates the @pdfCanvas using @imgSet. Each set of @imgSet will be attached in separate pages, while each subset will be together.'''
+    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, title: str, titleYPos=None):
+        '''
+        It populates the @pdfCanvas using the images provided.
+        @imgSet: It holds several sets of images. Supersets are divided in pages, while subsets are altogether on the page.
+        @titleYpos: Signals the position of the title. Only use for the page cover, as the rest of titles will have a position by default  
+        '''
         canvasSize = [pdfCanvas._pagesize[0], pdfCanvas._pagesize[1]]
         margins = [40, 90]
         ySeparation = 25
@@ -120,9 +120,9 @@ class Visualiser:
             titleWidth = pdfCanvas.stringWidth(title, 'Helvetica', fontSize)
             titleDate = f"{self.startDateShort} to {self.endDateShort}"
             titleDateWidth = pdfCanvas.stringWidth(titleDate, 'Helvetica', fontSize)
-            if titleYPosition:
-                pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2, y= titleYPosition, text= title)
-                pdfCanvas.drawString(x= canvasSize[0]/2 - titleDateWidth/2, y= titleYPosition - 60, text= titleDate)
+            if titleYPos:
+                pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2, y= titleYPos, text= title)
+                pdfCanvas.drawString(x= canvasSize[0]/2 - titleDateWidth/2, y= titleYPos - 60, text= titleDate)
             else:
                 pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2, y= yCoord, text= title)
 
@@ -140,7 +140,7 @@ class Visualiser:
                 pdfCanvas.setFont('Helvetica', 12)
                 today = date.today().strftime('%d/%m/%Y')
                 todayWidth = pdfCanvas.stringWidth(today, 'Helvetica', 12)
-                pdfCanvas.drawString(x= canvasSize[0]/2, y= yFooter, text= str(self.pageCount)) if self.pageCount == 1 else None
+                pdfCanvas.drawString(x= canvasSize[0]/2, y= yFooter, text= str(self.pageCount)) if self.pageCount != 0 else None
                 pdfCanvas.drawString(x= margins[0], y= yFooter, text= 'FREDDY LOFT')
                 pdfCanvas.drawString(x= canvasSize[0] - margins[0] - todayWidth, y= yFooter, text= today)
 
@@ -148,7 +148,7 @@ class Visualiser:
             self.pageCount = self.pageCount + 1
             yCoord = canvasSize[1] - ySeparation
         return pdfCanvas
-        
+
     def _splitPriorities(self, df:pd.DataFrame):
         '''It splits the dataframe provided into its priorities. It returns the dataframes holding tickets based on their priority and the count of each status in them'''
         priorityDfs = []
@@ -165,26 +165,28 @@ class Visualiser:
         monthly_dfs = [df[df['created'].dt.month == month] for month in range(1, 13)]
         return monthly_dfs
 
-    def _fetchImages(self, inputDir:str, fileNames = None, conditionStr = None):
-        '''It opens the files provided and opens either the files provided in fileNames, or the ones that match the conditionStr'''
+    def _fetchImages(self, directory:str, fileNames = None, conditionStr = None):
+        '''It opens the files located at the @inputDir that match the conditions.
+        @fileNames: It searches for exact matches. It accepts lists of names.
+        @conditionStr: It searches for files containing the conditionStr in its name.
+        '''
         imgs = []
-        dirName = os.path.join(self.resourcesDirectory,inputDir)
-        if fileNames != None:
+        if fileNames:
             files = fileNames
-        elif conditionStr != None:
-            files = [f for f in os.listdir(dirName) if conditionStr.lower() in f.lower()]
+        elif conditionStr:
+            files = [f for f in os.listdir(directory) if conditionStr.lower() in f.lower()]
         else:
             print('There are no images to fetch')
             files = []
 
         for imgName in files:
-            fileName = os.path.join(dirName,imgName)
+            fileName = os.path.join(directory, imgName)
             imgs.append(Image.open(fileName))
         return imgs
     
     def _savePlt(self,plt, directoryName:str, fileName:str):
         '''It saves the figure as a PNG file in the directory provided. This directory must be inside the 'resources' directory'''
-        pngFilepath = os.path.join(self.resourcesDirectory,directoryName, fileName)
+        pngFilepath = os.path.join(directoryName, fileName)
         plt.savefig(pngFilepath, bbox_inches='tight')
         plt.figure()  # Clear current figure
         print(f"The graph {fileName} has been succesfully saved as {pngFilepath}")
