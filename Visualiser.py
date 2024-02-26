@@ -12,17 +12,19 @@ class Visualiser:
     detailsFile = 'tools/details.json'
     resourcesDirectory = 'resources'
     overviewDirectory = os.path.join(resourcesDirectory, 'general')
-    pageCount = 0
+    pageCount = 1
     
     def __init__(self):
         self._loadConfiguration()
 
-    def run(self, df:pd.DataFrame, startDate, endDate, outputFileName:str, fileTitle: str):
+    def run(self, df:pd.DataFrame, startDate, endDate, outputFileName:str, fileTitle: str): #TODO: Add GUI to set the project author and client name
+        self.fileTitle = fileTitle
+        self.author = 'Freddy Loft'
+        self.today = date.today().strftime('%d/%m/%y')
         self.startDateLong = startDate.strftime('%d/%m/%Y')
         self.endDateLong = endDate.strftime('%d/%m/%Y')
         self.startDateShort = startDate.strftime('%d/%m/%y')
         self.endDateShort = endDate.strftime('%d/%m/%y')
-        self.fileTitle = fileTitle
         df.columns = df.columns.str.lower()
         df['created'] = pd.to_datetime(df['created'],format='mixed')
         df['updated'] = pd.to_datetime(df['updated'],format='mixed')
@@ -67,8 +69,8 @@ class Visualiser:
 
         # COVER SHEET
         imgSet = []
-        imgSet.append(self._fetchImages('tools\logos',['theICEway.png','Topdeck.png'])) #TODO Add GUI to set the client name
-        reportPDF = self._populatePDF(reportPDF, imgSet, title= self.fileTitle, titleYPos= 200)
+        imgSet.append(self._fetchImages('tools/logos',['theICEway.png','Topdeck.png']))
+        reportPDF = self._populatePDF(reportPDF, imgSet, title= self.fileTitle, isCover=True)
         
         # OVERVIEW
         imgSet = []
@@ -76,7 +78,7 @@ class Visualiser:
         tblImgs = self._fetchImages(self.overviewDirectory,conditionStr='Table')
         for tbl in tblImgs:
             imgSet.append([tbl])
-        reportPDF = self._populatePDF(reportPDF, imgSet, title= 'MONTHLY TICKETS')
+        reportPDF = self._populatePDF(reportPDF, imgSet, title= 'MONTHLY TICKETS', isCover = False)
         
         # PRIORITY
         priorityDfs, _ = self._splitPriorities(self.filteredDf) #TODO: Change method to have a single return if wanted
@@ -88,7 +90,7 @@ class Visualiser:
                 tblImgs = self._fetchImages(labelDir,conditionStr='Table')
                 for tbl in tblImgs:
                     imgSet.append([tbl]) # append table images separetely
-                reportPDF = self._populatePDF(reportPDF, imgSet, title=f"{label} - {len(priority)} tickets")
+                reportPDF = self._populatePDF(reportPDF, imgSet, title=f"{label} - {len(priority)} tickets", isCover = False)
 
         reportPDF.save()
 
@@ -101,30 +103,36 @@ class Visualiser:
             self.priorityLabels = data['priorityLabels']
             self.colorsICE = data['colorsICE']
 
-    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, title: str, titleYPos=None):
+    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, title: str, isCover: bool):
         '''
         It populates the @pdfCanvas using the images provided.
-        @imgSet: It holds several sets of images. Supersets are divided in pages, while subsets are altogether on the page.
-        @titleYpos: Signals the position of the title. Only use for the page cover, as the rest of titles will have a position by default  
+        @imgSet: It holds several sets of images. ImgSet are divided in pages, while imgList are on the same page.
+        @yCoord: Signals the position of the title. Only use for the page cover, as the rest of titles will have a position by default  
         '''
         canvasSize = [pdfCanvas._pagesize[0], pdfCanvas._pagesize[1]]
-        margins = [40, 90]
-        ySeparation = 25
-        yCoord = canvasSize[1] - margins[1]
-        yFooter = 15
-
-        # TITLE
-        if title:
-            fontSize = 50
-            pdfCanvas.setFont('Helvetica', 50, fontSize)
-            titleWidth = pdfCanvas.stringWidth(title, 'Helvetica', fontSize)
+        # COVER PAGE
+        if isCover:
+            margins = [70, 50] # Controls the images padding
+            xPad = 50 # Controls the text padding
+            yPad = 20
+            fontSize = 30
+            yCoord = margins[1] + 3*fontSize + 2*yPad
+            pdfCanvas.setFont('Helvetica', fontSize)
             titleDate = f"{self.startDateShort} to {self.endDateShort}"
-            titleDateWidth = pdfCanvas.stringWidth(titleDate, 'Helvetica', fontSize)
-            if titleYPos:
-                pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2, y= titleYPos, text= title)
-                pdfCanvas.drawString(x= canvasSize[0]/2 - titleDateWidth/2, y= titleYPos - 60, text= titleDate)
-            else:
-                pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2, y= yCoord, text= title)
+            pdfCanvas.drawString(text= title, x= xPad, y= yCoord)
+            yCoord = yCoord - yPad - fontSize
+            pdfCanvas.drawString(text= titleDate, x= xPad, y= yCoord)
+            yCoord = yCoord - yPad - fontSize
+            pdfCanvas.drawString(text= self.author, x= xPad, y= yCoord)
+            yCoord = canvasSize[1] - margins[1]
+        else:
+            margins = [30, 30]
+            yPad = 30
+            fontSize = 50
+            yCoord = canvasSize[1] - margins[1] - fontSize
+            pdfCanvas.setFont('Helvetica', fontSize)
+            titleWidth = pdfCanvas.stringWidth(title)
+            pdfCanvas.drawString(x= canvasSize[0]/2 - titleWidth/2, y= yCoord, text= title)
 
         # IMAGES
         for imgList in imgSet:
@@ -132,21 +140,22 @@ class Visualiser:
                 imgRatio = img.size[0] / img.size[1]
                 imgWidth = canvasSize[0] - margins[0]
                 imgHeight = imgWidth / imgRatio
-                yCoord = yCoord - imgHeight - ySeparation
+                yCoord = yCoord - yPad - imgHeight
                 xCoord = canvasSize[0]/2 - imgWidth/2
                 pdfCanvas.drawInlineImage(img, x=xCoord, y=yCoord, width=imgWidth, height=imgHeight)
 
-            # FOOTER #TODO: Add GUI to set the author name
+            # FOOTER
+            if not isCover:
+                yFooter = 30
                 pdfCanvas.setFont('Helvetica', 12)
-                today = date.today().strftime('%d/%m/%Y')
-                todayWidth = pdfCanvas.stringWidth(today, 'Helvetica', 12)
-                pdfCanvas.drawString(x= canvasSize[0]/2, y= yFooter, text= str(self.pageCount)) if self.pageCount != 0 else None
-                pdfCanvas.drawString(x= margins[0], y= yFooter, text= 'FREDDY LOFT')
-                pdfCanvas.drawString(x= canvasSize[0] - margins[0] - todayWidth, y= yFooter, text= today)
+                todayWidth = pdfCanvas.stringWidth(self.today)
+                pdfCanvas.drawString(x= margins[0], y= yFooter, text= self.author)
+                pdfCanvas.drawString(x= canvasSize[0]/2, y= yFooter, text= str(self.pageCount))
+                pdfCanvas.drawString(x= canvasSize[0] - margins[0] - todayWidth, y= yFooter, text= self.today)
 
             pdfCanvas.showPage()
             self.pageCount = self.pageCount + 1
-            yCoord = canvasSize[1] - ySeparation
+            yCoord = canvasSize[1]
         return pdfCanvas
 
     def _splitPriorities(self, df:pd.DataFrame):
