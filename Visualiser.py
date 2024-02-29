@@ -49,13 +49,11 @@ class Visualiser:
         # PRIORITY
         priorityDfs, pStatusList = self._splitPriorities(self.filteredDf)
         tags = ['Open', 'Closed', 'Unknown']
-        statusLabels = []
         for priority, label, status in zip(priorityDfs, self.priorityLabels, pStatusList):
             labelDir = os.path.join(self.resourcesDirectory,label)
             if not priority.empty:
-                for tag, count in zip(tags, status):
-                    statusLabels.append(f"{tag} ({count})")
-                statusPie = self._generatePie(plt, status, statusLabels)
+                statusLabel = [f"{tag} ({count})" for tag, count in zip(tags, status)]
+                statusPie = self._generatePie(plt, status, statusLabel)
                 self._savePlt(statusPie, labelDir, 'statusPie')
                 typesPie = self._generateTypesPie(priority)
                 self._savePlt(typesPie, labelDir, 'typesPie')
@@ -111,6 +109,7 @@ class Visualiser:
         '''
         canvasSize = [pdfCanvas._pagesize[0], pdfCanvas._pagesize[1]]
         # COVER PAGE
+        tempTitle = 'MANAGED SERVICE REPORT'
         if isCover:
             margins = [70, 50] # Controls the images padding
             xPad = 50 # Controls the text padding
@@ -118,8 +117,8 @@ class Visualiser:
             fontSize = 30
             yCoord = margins[1] + 3*fontSize + 2*yPad
             pdfCanvas.setFont('Helvetica', fontSize)
-            titleDate = f"{self.startDateShort} to {self.endDateShort}"
-            pdfCanvas.drawString(text= title, x= xPad, y= yCoord)
+            titleDate = f"FROM {self.startDateShort} TO {self.endDateShort}"
+            pdfCanvas.drawString(text= tempTitle, x= xPad, y= yCoord)
             yCoord = yCoord - yPad - fontSize
             pdfCanvas.drawString(text= titleDate, x= xPad, y= yCoord)
             yCoord = yCoord - yPad - fontSize
@@ -208,14 +207,18 @@ class Visualiser:
             return plt
     
     def _generateAnnualGraph(self, dfsList:list[pd.DataFrame]):
-        closedDf = []
-        openDf = []
+        closedDf, openDf, auxDf, unknownDf = [], [], [], []
         months = calendar.month_abbr[1:]
         for monthDf in dfsList:
-            closedDf.append(len(monthDf[monthDf['resolution'] == 'Closed']))
-            openDf.append(len(monthDf[monthDf['resolution'] != 'Closed']))
-        plt.bar(months, closedDf, color=self.colorsICE[1], label= f"Closed ({sum(closedDf)})")
-        plt.bar(months, openDf, bottom=closedDf, color=self.colorsICE[0], label=f"Open ({sum(openDf)})")
+            closedTickets = len(monthDf[monthDf['resolution'] == 'Closed'])
+            openTickets = len(monthDf[monthDf['resolution'] == 'Open'])
+            closedDf.append(closedTickets)
+            openDf.append(openTickets)
+            auxDf.append(closedTickets + openTickets)
+            unknownDf.append(len(monthDf[monthDf['resolution'] == 'Unknown']))
+        plt.bar(months, closedDf, color= self.colorsICE[1], label= f"Closed ({sum(closedDf)})")
+        plt.bar(months, openDf, bottom= closedDf, color= self.colorsICE[0], label=f"Open ({sum(openDf)})")
+        plt.bar(months, unknownDf, bottom= auxDf, color= self.colorsICE[2], label= f"Unknown ({sum(unknownDf)})")
         plt.ylabel('N tickets')
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         return plt
@@ -248,10 +251,8 @@ class Visualiser:
 
         while limits[0] <= len(df):
             auxDf = df[limits[0]:limits[1]]
-            auxDf.loc[:, 'created'] = auxDf['created'].dt.date
-            auxDf.loc[:, 'updated'] = auxDf['updated'].dt.date
-            auxDf['created'] = auxDf['created'].dt.strftime('%d/%m/%y')
-            auxDf['updated'] = auxDf['updated'].dt.strftime('%d/%m/%y')
+            auxDf.loc[:, 'created'] = pd.to_datetime(auxDf['created']).dt.strftime('%d/%m/%y')
+            auxDf.loc[:, 'updated'] = pd.to_datetime(auxDf['updated']).dt.strftime('%d/%m/%y')
             limits[0] = limits[0] + length
             limits[1] = limits[1] + length
             colorTab = colorTable(auxDf)
@@ -310,10 +311,10 @@ class Visualiser:
         plt.ylim(0, 1)  # Set Y axis limits
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
-        for i, (rect1, rect2) in enumerate(zip(resolutionBar1, resolutionBar2)):
+        for i, (priority, (rect1, rect2)) in enumerate(zip(self.priorityLabels, zip(resolutionBar1, resolutionBar2))):
             height = rect1.get_height() + rect2.get_height()
-            plt.text(rect1.get_x() + rect1.get_width() / 2, height, f'AVG:{resolutionsAvg[i]} min', ha='center', va='bottom')
-        
+            plt.text(rect1.get_x() + rect1.get_width() / 2, height, f'{resolutionsAvg[i]} / {self.resolutionAgreed.get(priority)}', ha='center', va='bottom')
+        #plt.text(rect1.get_x() + rect1.get_width() / 2, height, f'AVG:{resolutionsAvg[i]} min', ha='center', va='bottom')
         return plt
 
     def _generateSatisfactionGraph(self, df:pd.DataFrame): # TODO to complete
