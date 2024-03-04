@@ -1,11 +1,12 @@
 import PySimpleGUI as sg
+import json
 from datetime import datetime as dt
 
 class GUI:
     currentLayout = None
-
     errorDate = "Invalid date format. Please enter valid dates."
     errorFile = "Invalid file path. Please provide a valid file."
+    detailsFile = 'tools/details.json'
 
     def __init__(self):
         sg.theme('SystemDefault')
@@ -33,23 +34,28 @@ class GUI:
 
     def handleReport(self, event, values):
         if event != 'SAVE':
-            return None, None, None, None
+            return None, None, None, None, None, None
         
         startingDate = f"{values.get('DAY1')}/{values.get('MONTH1')}/{values.get('YEAR1')}"
         endDate = f"{values.get('DAY2')}/{values.get('MONTH2')}/{values.get('YEAR2')}"
-        filepath = values.get('FILEPATHREPORT')
-        title = values.get('TITLEREPORT')
+        filepath = values.get('FILEPATH')
+        title = values.get('TITLE')
+        author = values.get('AUTHOR')
+        client = values.get('CLIENT')
         try:
             startingDate = dt.strptime(startingDate, '%d/%m/%Y')
             endDate = dt.strptime(endDate, '%d/%m/%Y')
         except ValueError:
             sg.popup_no_buttons(self.errorDate)
+            return None, None, None, None, None, None
         if not filepath:
             sg.popup_no_buttons(self.errorFile)
+            return None, None, None, None, None, None
         elif not title:
             sg.popup_no_buttons('Please provide a title for the report')
+            return None, None, None, None, None, None
         else:
-            return startingDate, endDate, filepath, title
+            return startingDate, endDate, filepath, title, author, client
 
     def changeLayout(self, title:str, layout:list):
         self.window.close()
@@ -87,15 +93,19 @@ class GUI:
         years = [i for i in range(today.year-3, today.year+1)]
         ys1 = sg.Spin(years, initial_value=str(today.year), readonly=True, size=15, enable_events=True, key='YEAR1')
         ys2 = sg.Spin(years, initial_value=str(today.year), readonly=True, size=15, enable_events=True, key='YEAR2')
+        with open(self.detailsFile, 'r') as file:
+            data = json.load(file)
+            clients = data['clients']
 
         return [
+            [sg.Text('Title   '), sg.InputText(key='TITLE', default_text= 'MANAGED SERVICE REPORT', size=(30, 1))],
+            [sg.Text('Author'), sg.InputText(key='AUTHOR', default_text= 'Freddy Loft', size=(30, 1))],
+            [sg.Text('Client'), sg.Combo(clients, enable_events= True, key= 'CLIENT', size =(28,1))],
             [sg.Text('Select a start date')],
             [ds1, ms1, ys1],
             [sg.Text('Select an end date')],
             [ds2, ms2, ys2],
-            [sg.Text('Provide a title for the report')],
-            [sg.InputText(key='TITLEREPORT', size=(30, 1))],
-            [sg.InputText(key='FILEPATHREPORT', size=(1, 1), visible=False)],
             [sg.Text('Select the output file')],
-            [sg.FileSaveAs(target='FILEPATHREPORT', button_text='SELECT OUTPUT', size=(28, 1)),sg.Button('SAVE', size=(10, 1))]
+            [sg.FileSaveAs(target='FILEPATH', button_text='SELECT OUTPUT', size=(28, 1)),sg.Button('SAVE', size=(10, 1))],
+            [sg.InputText(key='FILEPATH', size=(1, 1), visible=False)]
         ]

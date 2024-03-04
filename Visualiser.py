@@ -17,9 +17,10 @@ class Visualiser:
     def __init__(self):
         self._loadConfiguration()
 
-    def run(self, df:pd.DataFrame, startDate, endDate, outputFileName:str, fileTitle: str): #TODO: Add GUI to set the project author and client name
+    def run(self, df:pd.DataFrame, startDate, endDate, outputFileName:str, fileTitle: str, author: str, client: str):
         self.fileTitle = fileTitle
-        self.author = 'Freddy Loft'
+        self.author = author
+        self.client = client
         self.today = date.today().strftime('%d/%m/%y')
         self.startDateLong = startDate.strftime('%d/%m/%Y')
         self.endDateLong = endDate.strftime('%d/%m/%Y')
@@ -61,12 +62,13 @@ class Visualiser:
             else:
                 print(f"No tickets to generate graph for {label}")
 
-    def generatePDF(self, outputFileName:str):
+    def generatePDF(self, outputFileName:str): #TODO: Add client name logic to pass the client logo
         '''It creates the pdf canvas and stores it in the given outputFileName'''
         reportPDF = Canvas(f'{outputFileName}.pdf', pagesize=A4)
 
         # COVER SHEET
         imgSet = []
+        clientImg = f'{self.client}.png'
         imgSet.append(self._fetchImages('tools/logos',['theICEway.png','Topdeck.png']))
         reportPDF = self._populatePDF(reportPDF, imgSet, title= self.fileTitle, isCover=True)
         
@@ -109,16 +111,15 @@ class Visualiser:
         '''
         canvasSize = [pdfCanvas._pagesize[0], pdfCanvas._pagesize[1]]
         # COVER PAGE
-        tempTitle = 'MANAGED SERVICE REPORT'
         if isCover:
-            margins = [70, 50] # Controls the images padding
+            margins = [100, 50] # Controls the images padding
             xPad = 50 # Controls the text padding
             yPad = 20
             fontSize = 30
             yCoord = margins[1] + 3*fontSize + 2*yPad
             pdfCanvas.setFont('Helvetica', fontSize)
             titleDate = f"FROM {self.startDateShort} TO {self.endDateShort}"
-            pdfCanvas.drawString(text= tempTitle, x= xPad, y= yCoord)
+            pdfCanvas.drawString(text= self.fileTitle, x= xPad, y= yCoord)
             yCoord = yCoord - yPad - fontSize
             pdfCanvas.drawString(text= titleDate, x= xPad, y= yCoord)
             yCoord = yCoord - yPad - fontSize
