@@ -25,7 +25,7 @@
         "11":"NOV",
         "12":"DEC"
     },
-    "clients": ["ACT","AMA","AMB","C&B","DOL","GLT","ISF","INT","MIR","ONE","ORY","PHA","RSA"],
+    "clients": ["ac tours","ama waterways","ambar kelly","aroya cruises","azamara","butlins","celestial cruises","crown & bentley","dolphin dynamics","explora journeys","global touring","ncl","one healthcare","oryon imaging","pharos data"],
     "statusOpen": ["in progress","on hold (awaiting customer)","on hold (scheduled)","3rd line","approved","assigned","ongoing","open","peer review","cloud services","backlog"],
     "statusClosed": ["resolved","closed","done","completed change"],
     "columns": ["issue key","issue type","priority","category","created","updated","reporter","assignee","summary","status","resolution","time to resolution","first time fix","in scope","time to first response","cost centre","time spent","location","ticket source","satisfaction rating"],

@@ -7,6 +7,7 @@ class GUI:
     errorDate = "Invalid date format. Please enter valid dates."
     errorFile = "Invalid file path. Please provide a valid file."
     detailsFile = 'tools/details.json'
+    noneList = None, None, None, None, None, None
 
     def __init__(self):
         sg.theme('SystemDefault')
@@ -47,13 +48,16 @@ class GUI:
             endDate = dt.strptime(endDate, '%d/%m/%Y')
         except ValueError:
             sg.popup_no_buttons(self.errorDate)
-            return None, None, None, None, None, None
+            return self.noneList
         if not filepath:
             sg.popup_no_buttons(self.errorFile)
-            return None, None, None, None, None, None
+            return self.noneList
         elif not title:
-            sg.popup_no_buttons('Please provide a title for the report')
-            return None, None, None, None, None, None
+            sg.popup_no_buttons('Please provide a title')
+            return self.noneList
+        elif not client:
+            sg.popup_no_buttons('Please select a client')
+            return self.noneList
         else:
             return startingDate, endDate, filepath, title, author, client
 

@@ -30,7 +30,7 @@ class Visualiser:
         df['created'] = pd.to_datetime(df['created'],format='mixed')
         df['updated'] = pd.to_datetime(df['updated'],format='mixed')
         self.filteredDf = df[(df['created'] >= startDate) & (df['created'] <= endDate)]
-        self.populateResources(df)
+        #self.populateResources(df)
         self.generatePDF(outputFileName)
 
     def populateResources(self, df:pd.DataFrame):
@@ -62,23 +62,32 @@ class Visualiser:
             else:
                 print(f"No tickets to generate graph for {label}")
 
-    def generatePDF(self, outputFileName:str): #TODO: Add client name logic to pass the client logo
+    def generatePDF(self, outputFileName:str):
         '''It creates the pdf canvas and stores it in the given outputFileName'''
         reportPDF = Canvas(f'{outputFileName}.pdf', pagesize=A4)
+
+        #TEST
+        with open(self.detailsFile, 'r') as file:
+            data = json.load(file)
+            clients = data['clients']
+            imgSet = []
+            for client in clients:
+                clientImg = f'{client}.png'
+                imgSet.append(self._fetchImages('tools/logos',['theICEway.png',clientImg]))
+            reportPDF = self._populatePDF(pdfCanvas= reportPDF, title= self.fileTitle, isCover=True, imgSet= imgSet)
 
         # COVER SHEET
         imgSet = []
         clientImg = f'{self.client}.png'
-        imgSet.append(self._fetchImages('tools/logos',['theICEway.png','Topdeck.png']))
-        reportPDF = self._populatePDF(reportPDF, imgSet, title= self.fileTitle, isCover=True)
-        
+        imgSet.append(self._fetchImages('tools/logos',['theICEway.png',clientImg]))
+        reportPDF = self._populatePDF(pdfCanvas= reportPDF, title= self.fileTitle, isCover=True, imgSet= imgSet)
         # OVERVIEW
         imgSet = []
         imgSet.append(self._fetchImages(self.overviewDirectory,['annualGraph.png','timeGraph.png']))
         tblImgs = self._fetchImages(self.overviewDirectory,conditionStr='Table')
         for tbl in tblImgs:
             imgSet.append([tbl])
-        reportPDF = self._populatePDF(reportPDF, imgSet, title= 'MONTHLY TICKETS', isCover = False)
+        reportPDF = self._populatePDF(pdfCanvas= reportPDF, title= 'MONTHLY TICKETS', isCover= False, imgSet= imgSet)
         
         # PRIORITY
         priorityDfs, _ = self._splitPriorities(self.filteredDf) #TODO: Change method to have a single return if wanted
@@ -90,8 +99,7 @@ class Visualiser:
                 tblImgs = self._fetchImages(labelDir,conditionStr='Table')
                 for tbl in tblImgs:
                     imgSet.append([tbl]) # append table images separetely
-                reportPDF = self._populatePDF(reportPDF, imgSet, title=f"{label} - {len(priority)} tickets", isCover = False)
-
+                reportPDF = self._populatePDF(pdfCanvas= reportPDF, title= f"{label} - {len(priority)} tickets", isCover= False, imgSet= imgSet)
         reportPDF.save()
 
 # PRIVATE METHODS
@@ -103,11 +111,15 @@ class Visualiser:
             self.priorityLabels = data['priorityLabels']
             self.colorsICE = data['colorsICE']
 
-    def _populatePDF(self, pdfCanvas:Canvas, imgSet:list, title: str, isCover: bool):
+    def _populatePDF(self, pdfCanvas:Canvas, title:str, isCover: bool, imgSet:list):
         '''
         It populates the @pdfCanvas using the images provided.
-        @imgSet: It holds several sets of images. ImgSet are divided in pages, while imgList are on the same page.
-        @yCoord: Signals the position of the title. Only use for the page cover, as the rest of titles will have a position by default  
+
+        Args:
+            pdfCanvas: Canvas on which all the elements will be displayed on.
+            title: Title of the portion of the document. The document title is set using the GUI.
+            isCover: Signal to indicate if the section of the document is the cover page.
+            imgSet: It holds several sets of images. ImgSet are divided in pages, while imgList are on the same page.
         '''
         canvasSize = [pdfCanvas._pagesize[0], pdfCanvas._pagesize[1]]
         # COVER PAGE
@@ -116,7 +128,7 @@ class Visualiser:
             xPad = 50 # Controls the text padding
             yPad = 20
             fontSize = 30
-            yCoord = margins[1] + 3*fontSize + 2*yPad
+            yCoord = margins[1] + 3*fontSize + yPad
             pdfCanvas.setFont('Helvetica', fontSize)
             titleDate = f"FROM {self.startDateShort} TO {self.endDateShort}"
             pdfCanvas.drawString(text= self.fileTitle, x= xPad, y= yCoord)
@@ -137,12 +149,13 @@ class Visualiser:
         # IMAGES
         for imgList in imgSet:
             for img in imgList:
-                imgRatio = img.size[0] / img.size[1]
-                imgWidth = canvasSize[0] - margins[0]
-                imgHeight = imgWidth / imgRatio
-                yCoord = yCoord - yPad - imgHeight
-                xCoord = canvasSize[0]/2 - imgWidth/2
-                pdfCanvas.drawInlineImage(img, x=xCoord, y=yCoord, width=imgWidth, height=imgHeight)
+                if isCover:
+                    img = self._resizeImg(img, widthLimit= canvasSize[0] - margins[0], heightLimit= 250)
+                else:
+                    img = self._resizeImg(img, widthLimit= canvasSize[0] - margins[0])          
+                yCoord = yCoord - yPad - img.size[1]
+                xCoord = canvasSize[0]/2 - img.size[0]/2
+                pdfCanvas.drawInlineImage(img, x= xCoord, y= yCoord, width= img.size[0], height= img.size[1])
 
             # FOOTER
             if not isCover:
@@ -169,10 +182,21 @@ class Visualiser:
         
         return priorityDfs, pStatusList
 
-    def _splitMonths(self, df: pd.DataFrame):
+    def _splitMonths(self, df:pd.DataFrame):
         '''It returns a list containing 12 dataframes, each containing the tickets created in each month'''
         monthly_dfs = [df[df['created'].dt.month == month] for month in range(1, 13)]
         return monthly_dfs
+    
+    def _resizeImg(self, img:Image, widthLimit:int, heightLimit=None):
+        imgRatio = img.size[0] / img.size[1]
+        imgWidth = widthLimit
+        imgHeight = imgWidth / imgRatio
+        if imgHeight > heightLimit:
+            imgHeight = heightLimit
+            imgWidth = imgHeight * imgRatio
+        img = img.resize((int(imgWidth), int(imgHeight)))
+        print(img)
+        return img
 
     def _fetchImages(self, directory:str, fileNames = None, conditionStr = None):
         '''It opens the files located at the @inputDir that match the conditions.
