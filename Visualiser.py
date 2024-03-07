@@ -30,7 +30,7 @@ class Visualiser:
         df['created'] = pd.to_datetime(df['created'],format='mixed')
         df['updated'] = pd.to_datetime(df['updated'],format='mixed')
         self.filteredDf = df[(df['created'] >= startDate) & (df['created'] <= endDate)]
-        #self.populateResources(df)
+        self.populateResources(df)
         self.generatePDF(outputFileName)
 
     def populateResources(self, df:pd.DataFrame):
@@ -65,16 +65,7 @@ class Visualiser:
     def generatePDF(self, outputFileName:str):
         '''It creates the pdf canvas and stores it in the given outputFileName'''
         reportPDF = Canvas(f'{outputFileName}.pdf', pagesize=A4)
-
-        #TEST
-        with open(self.detailsFile, 'r') as file:
-            data = json.load(file)
-            clients = data['clients']
-            imgSet = []
-            for client in clients:
-                clientImg = f'{client}.png'
-                imgSet.append(self._fetchImages('tools/logos',['theICEway.png',clientImg]))
-            reportPDF = self._populatePDF(pdfCanvas= reportPDF, title= self.fileTitle, isCover=True, imgSet= imgSet)
+        reportPDF.setTitle(self.fileTitle)
 
         # COVER SHEET
         imgSet = []
@@ -150,12 +141,12 @@ class Visualiser:
         for imgList in imgSet:
             for img in imgList:
                 if isCover:
-                    img = self._resizeImg(img, widthLimit= canvasSize[0] - margins[0], heightLimit= 250)
+                    imgWid, imgHei = self._resizeImg(img, widthLimit= canvasSize[0] - margins[0], heightLimit= 250)
                 else:
-                    img = self._resizeImg(img, widthLimit= canvasSize[0] - margins[0])          
-                yCoord = yCoord - yPad - img.size[1]
-                xCoord = canvasSize[0]/2 - img.size[0]/2
-                pdfCanvas.drawInlineImage(img, x= xCoord, y= yCoord, width= img.size[0], height= img.size[1])
+                    imgWid, imgHei = self._resizeImg(img, widthLimit= canvasSize[0] - margins[0])          
+                yCoord = yCoord - yPad - imgHei
+                xCoord = canvasSize[0]/2 - imgWid/2
+                pdfCanvas.drawInlineImage(img, x= xCoord, y= yCoord, width= imgWid, height= imgHei)
 
             # FOOTER
             if not isCover:
@@ -187,16 +178,18 @@ class Visualiser:
         monthly_dfs = [df[df['created'].dt.month == month] for month in range(1, 13)]
         return monthly_dfs
     
-    def _resizeImg(self, img:Image, widthLimit:int, heightLimit=None):
+    def _resizeImg(self, img: Image, widthLimit: int, heightLimit=None):
+        '''It resizes an image while maintaining its aspect ratio, ensuring that the resulting dimensions fit within the limits.'''
         imgRatio = img.size[0] / img.size[1]
         imgWidth = widthLimit
         imgHeight = imgWidth / imgRatio
-        if imgHeight > heightLimit:
+        if heightLimit and imgWidth > widthLimit:
+            imgWidth = widthLimit
+            imgHeight = imgWidth / imgRatio
+        if heightLimit and imgHeight > heightLimit:
             imgHeight = heightLimit
             imgWidth = imgHeight * imgRatio
-        img = img.resize((int(imgWidth), int(imgHeight)))
-        print(img)
-        return img
+        return imgWidth, imgHeight
 
     def _fetchImages(self, directory:str, fileNames = None, conditionStr = None):
         '''It opens the files located at the @inputDir that match the conditions.
