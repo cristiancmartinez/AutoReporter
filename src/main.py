@@ -1,10 +1,10 @@
-import Handler
-import GUI
+import Handler as Handler
+import GUI as GUI
 import PySimpleGUI as sg
 import pandas as pd
 import os
 import shutil
-import Visualiser
+import Visualiser as Visualiser
 
 def clearResources():
     subDir = [f for f in os.listdir('resources')]

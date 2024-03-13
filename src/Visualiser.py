@@ -119,17 +119,16 @@ class Visualiser:
         # COVER PAGE
         if isCover:
             margins = [100, 50] # Controls the images padding
-            xPad = 50 # Controls the text padding
             yPad = 20
             fontSize = 30
             yCoord = margins[1] + 3*fontSize + yPad
             pdfCanvas.setFont('Helvetica', fontSize)
             titleDate = f"FROM {self.startDateShort} TO {self.endDateShort}"
-            pdfCanvas.drawString(text= self.fileTitle, x= xPad, y= yCoord)
+            textWidth = pdfCanvas.stringWidth(self.fileTitle)
+            pdfCanvas.drawString(text= self.fileTitle, x= canvasSize[0]/2 - textWidth/2, y= yCoord)
             yCoord = yCoord - yPad - fontSize
-            pdfCanvas.drawString(text= titleDate, x= xPad, y= yCoord)
-            yCoord = yCoord - yPad - fontSize
-            pdfCanvas.drawString(text= self.author, x= xPad, y= yCoord)
+            textWidth = pdfCanvas.stringWidth(titleDate)
+            pdfCanvas.drawString(text= titleDate, x= canvasSize[0]/2 - textWidth/2, y= yCoord) 
             yCoord = canvasSize[1] - margins[1]
         else:
             margins = [30, 30]
@@ -144,7 +143,7 @@ class Visualiser:
         for imgList in imgSet:
             for img in imgList:
                 if isCover:
-                    imgWid, imgHei = self._resizeImg(img, widthLimit= canvasSize[0] - margins[0], heightLimit= 250)
+                    imgWid, imgHei = self._resizeImg(img, widthLimit= canvasSize[0] - margins[0], heightLimit= 275)
                 else:
                     imgWid, imgHei = self._resizeImg(img, widthLimit= canvasSize[0] - margins[0])          
                 yCoord = yCoord - yPad - imgHei
@@ -152,13 +151,12 @@ class Visualiser:
                 pdfCanvas.drawInlineImage(img, x= xCoord, y= yCoord, width= imgWid, height= imgHei)
 
             # FOOTER
-            if not isCover:
-                yFooter = 30
-                pdfCanvas.setFont('Helvetica', 12)
-                todayWidth = pdfCanvas.stringWidth(self.today)
-                pdfCanvas.drawString(x= margins[0], y= yFooter, text= self.author)
-                pdfCanvas.drawString(x= canvasSize[0]/2, y= yFooter, text= str(self.pageCount))
-                pdfCanvas.drawString(x= canvasSize[0] - margins[0] - todayWidth, y= yFooter, text= self.today)
+            yFooter = 30
+            pdfCanvas.setFont('Helvetica', 12)
+            todayWidth = pdfCanvas.stringWidth(self.today)
+            pdfCanvas.drawString(x= 30, y= yFooter, text= self.author)
+            pdfCanvas.drawString(x= canvasSize[0]/2, y= yFooter, text= str(self.pageCount))
+            pdfCanvas.drawString(x= canvasSize[0] - 30 - todayWidth, y= yFooter, text= self.today)
 
             pdfCanvas.showPage()
             self.pageCount = self.pageCount + 1
@@ -194,7 +192,7 @@ class Visualiser:
             imgWidth = imgHeight * imgRatio
         return imgWidth, imgHeight
 
-    def _fetchImages(self, directory:str, fileNames = None, conditionStr = None): # FIXME: Add None handling
+    def _fetchImages(self, directory:str, fileNames = None, conditionStr = None): 
         '''It opens the files located at the @inputDir that match the conditions.
         @fileNames: It searches for exact matches. It accepts lists of names.
         @conditionStr: It searches for files containing the conditionStr in its name.
