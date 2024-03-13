@@ -48,9 +48,12 @@ while gui.window:
                 break
                 
         elif gui.currentLayout == 'Report':
-            startDate, endDate, filePath, title, author, client = gui.handleReport(event, values)
+            startDate, endDate, filePath, title, author, client, checkBox = gui.handleReport(event, values)
             if startDate and endDate and filePath:
                 gui.window.close()
+                df = handler.formatDf(df)
                 visualiser.run(df, startDate, endDate, filePath, title, author, client)
+                if checkBox:
+                    handler.saveDf(df, filePath)
                 sg.popup_ok(f'File has been saved as {filePath}')
                 break

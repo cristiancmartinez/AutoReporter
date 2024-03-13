@@ -7,7 +7,7 @@ class GUI:
     errorDate = "Invalid date format. Please enter valid dates."
     errorFile = "Invalid file path. Please provide a valid file."
     detailsFile = 'tools/details.json'
-    noneList = None, None, None, None, None, None
+    noneList = None, None, None, None, None, None, None
 
     def __init__(self):
         sg.theme('SystemDefault')
@@ -35,7 +35,7 @@ class GUI:
 
     def handleReport(self, event, values):
         if event != 'SAVE':
-            return None, None, None, None, None, None
+            return self.noneList
         
         startingDate = f"{values.get('DAY1')}/{values.get('MONTH1')}/{values.get('YEAR1')}"
         endDate = f"{values.get('DAY2')}/{values.get('MONTH2')}/{values.get('YEAR2')}"
@@ -43,6 +43,7 @@ class GUI:
         title = values.get('TITLE')
         author = values.get('AUTHOR')
         client = values.get('CLIENT')
+        checkBox = values.get('CHECK')
         try:
             startingDate = dt.strptime(startingDate, '%d/%m/%Y')
             endDate = dt.strptime(endDate, '%d/%m/%Y')
@@ -55,11 +56,14 @@ class GUI:
         elif not title:
             sg.popup_no_buttons('Please provide a title')
             return self.noneList
+        elif not author:
+            sg.popup_no_buttons('Please provide an author')
+            return self.noneList
         elif not client:
             sg.popup_no_buttons('Please select a client')
             return self.noneList
         else:
-            return startingDate, endDate, filepath, title, author, client
+            return startingDate, endDate, filepath, title, author, client, checkBox
 
     def changeLayout(self, title:str, layout:list):
         self.window.close()
@@ -111,5 +115,6 @@ class GUI:
             [ds2, ms2, ys2],
             [sg.Text('Select the output file')],
             [sg.FileSaveAs(target='FILEPATH', button_text='SELECT OUTPUT', size=(28, 1)),sg.Button('SAVE', size=(10, 1))],
+            [sg.Checkbox('Do you want to save the formatted file?', key = 'CHECK',size=(30,1), default=False)],
             [sg.InputText(key='FILEPATH', size=(1, 1), visible=False)]
         ]

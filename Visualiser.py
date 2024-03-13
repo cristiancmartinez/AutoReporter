@@ -45,7 +45,10 @@ class Visualiser:
         timeGraph = self._generateTimeGraph(df)
         self._savePlt(timeGraph,self.overviewDirectory,'timeGraph')
         openTickets = df[df['resolution'] == 'Open']
-        self._generateTicketTable(openTickets, self.overviewDirectory, 'openTable', isOverview= True)
+        if not openTickets.empty: # TODO: Complete else
+            self._generateTicketTable(openTickets, self.overviewDirectory, 'openTable', isOverview= True)
+        else:
+            print("No tickets to generate table for Overview")
 
         # PRIORITY
         priorityDfs, pStatusList = self._splitPriorities(self.filteredDf)
@@ -191,7 +194,7 @@ class Visualiser:
             imgWidth = imgHeight * imgRatio
         return imgWidth, imgHeight
 
-    def _fetchImages(self, directory:str, fileNames = None, conditionStr = None):
+    def _fetchImages(self, directory:str, fileNames = None, conditionStr = None): # FIXME: Add None handling
         '''It opens the files located at the @inputDir that match the conditions.
         @fileNames: It searches for exact matches. It accepts lists of names.
         @conditionStr: It searches for files containing the conditionStr in its name.
@@ -202,20 +205,27 @@ class Visualiser:
         elif conditionStr:
             files = [f for f in os.listdir(directory) if conditionStr.lower() in f.lower()]
         else:
-            print('There are no images to fetch')
-            files = []
+            print('[_fetchImages]: No parameters were provided')
+            return None
 
         for imgName in files:
-            fileName = os.path.join(directory, imgName)
-            imgs.append(Image.open(fileName))
+            try:
+                fileName = os.path.join(directory, imgName)
+                imgs.append(Image.open(fileName))
+            except:
+                print(f"[_fetchImages]: The file {fileName} was not found")
+                return None
         return imgs
     
     def _savePlt(self,plt, directoryName:str, fileName:str):
         '''It saves the figure as a PNG file in the directory provided. This directory must be inside the 'resources' directory'''
-        pngFilepath = os.path.join(directoryName, fileName)
-        plt.savefig(pngFilepath, bbox_inches='tight')
-        plt.figure()  # Clear current figure
-        print(f"The graph {fileName} has been succesfully saved as {pngFilepath}")
+        try:
+            pngFilepath = os.path.join(directoryName, fileName)
+            plt.savefig(pngFilepath, bbox_inches='tight')
+            plt.figure()  # Clear current figure
+            print(f"The graph {fileName} has been succesfully saved as {pngFilepath}")
+        except:
+            print(f"[_savePlt]: The graph {fileName} could not be saved")
         
     def _generatePie(self, plt, values:list, labels:list):
         if len(values)>0:
@@ -331,8 +341,7 @@ class Visualiser:
 
         for i, (priority, (rect1, rect2)) in enumerate(zip(self.priorityLabels, zip(resolutionBar1, resolutionBar2))):
             height = rect1.get_height() + rect2.get_height()
-            plt.text(rect1.get_x() + rect1.get_width() / 2, height, f'{resolutionsAvg[i]} / {self.resolutionAgreed.get(priority)}', ha='center', va='bottom')
-        #plt.text(rect1.get_x() + rect1.get_width() / 2, height, f'AVG:{resolutionsAvg[i]} min', ha='center', va='bottom')
+            plt.text(rect1.get_x() + rect1.get_width() / 2, height, f'AVG:{resolutionsAvg[i]} min', ha='center', va='bottom')
         return plt
 
     def _generateSatisfactionGraph(self, df:pd.DataFrame): # TODO to complete
